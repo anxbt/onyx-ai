@@ -1,0 +1,2 @@
+-- Seed file intentionally empty.
+-- This app should not create demo conversations, messages, or wallet transactions.

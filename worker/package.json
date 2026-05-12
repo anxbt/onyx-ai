@@ -1,0 +1,19 @@
+{
+  "name": "onyxai-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "^0.12.35",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250505.0",
+    "typescript": "^5.8.0",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "info": {
+    "_postman_id": "onyxai-local-testing",
+    "name": "OnyxAI Local Testing",
+    "description": "Local testing collection for OnyxAI worker endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Create Test User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{supabase_url}}/auth/v1/signup",
+              "host": ["{{supabase_url}}"],
+              "path": ["auth", "v1", "signup"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sign In (Get JWT)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{supabase_url}}/auth/v1/token?grant_type=password",
+              "host": ["{{supabase_url}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test123456\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "pm.environment.set('jwt_token', response.access_token);",
+                  "pm.environment.set('user_id', response.user.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Worker Endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat",
+              "host": ["{{base_url}}"],
+              "path": ["chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"qwen/qwen3-coder-480b:free\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello, what is 2+2?\"\n    }\n  ],\n  \"conversationId\": \"test-conv-1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Payment Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/create-order",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "create-order"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packId\": \"pack_100\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/verify",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_order_id\": \"order_xxxxx\",\n  \"razorpay_payment_id\": \"pay_xxxxx\",\n  \"razorpay_signature\": \"signature_hash\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Memory Extract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/memory/extract",
+              "host": ["{{base_url}}"],
+              "path": ["memory", "extract"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8787"
+    },
+    {
+      "key": "supabase_url",
+      "value": "http://localhost:54321"
+    },
+    {
+      "key": "supabase_anon_key",
+      "value": ""
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    }
+  ]
+}

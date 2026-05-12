@@ -1,0 +1,5 @@
+[auth]
+signing_keys_path = "./signing_keys.json"
+
+[api]
+max_rows = 1000
