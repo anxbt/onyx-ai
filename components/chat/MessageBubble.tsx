@@ -1,3 +1,4 @@
+import React, { memo } from "react";
 import { Text, View } from "react-native";
 
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
@@ -11,7 +12,7 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
 }
 
-export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+function MessageBubbleComponent({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const model = message.model ? getModelConfig(message.model) : null;
 
@@ -31,9 +32,11 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       {!isUser && model ? (
         <Text style={{ color: Colors.textTertiary, fontSize: 12, fontWeight: "700" }}>{model.displayName}</Text>
       ) : null}
-      <MarkdownRenderer content={message.content} />
+      <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
       {isStreaming ? <StreamingIndicator /> : null}
     </View>
   );
 }
+
+export const MessageBubble = memo(MessageBubbleComponent);
 

@@ -16,5 +16,24 @@ export const Colors = {
   warning: "#F59E0B",
   userBubble: "#7C3AED",
   assistantSurface: "#1A1A1A",
-} as const;
 
+  // Markdown / Syntax Highlighting
+  codeBackground: "#111111",
+  codeBlockBackground: "#0D0D0D",
+  inlineCodeBackground: "#27272A",
+  codeText: "#E4E4E7",
+  syntaxKeyword: "#C084FC",
+  syntaxString: "#86EFAC",
+  syntaxComment: "#52525B",
+  syntaxNumber: "#FDBA74",
+  syntaxFunction: "#93C5FD",
+  syntaxOperator: "#FDA4AF",
+  syntaxType: "#67E8F9",
+  linkColor: "#7C3AED",
+  blockquoteBorder: "#7C3AED",
+  blockquoteBackground: "#1E0A3C",
+  tableBorder: "#27272A",
+  tableHeaderBackground: "#1A1A1A",
+  tableRowEven: "#111111",
+  mathColor: "#E4E4E7",
+} as const;
