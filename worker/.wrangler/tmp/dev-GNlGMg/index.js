@@ -31610,16 +31610,162 @@ async function insertTopUpOrder(env2, payload) {
   }
 }
 __name(insertTopUpOrder, "insertTopUpOrder");
+async function fetchConversationSummaries(env2, conversationId) {
+  const response = await fetch(
+    `${baseUrl(env2)}/rest/v1/conversation_summaries?conversation_id=eq.${encodeURIComponent(conversationId)}&select=message_start_idx,message_end_idx,summary_text,key_facts&order=message_end_idx.asc`,
+    { headers: restHeaders(env2) }
+  );
+  if (!response.ok) return [];
+  return await response.json();
+}
+__name(fetchConversationSummaries, "fetchConversationSummaries");
+async function fetchMessagesRange(env2, conversationId, startIdx, endIdx) {
+  const response = await fetch(
+    `${baseUrl(env2)}/rest/v1/messages?conversation_id=eq.${encodeURIComponent(conversationId)}&select=role,content&order=created_at.asc&offset=${startIdx}&limit=${endIdx - startIdx}`,
+    { headers: restHeaders(env2) }
+  );
+  if (!response.ok) return [];
+  return await response.json();
+}
+__name(fetchMessagesRange, "fetchMessagesRange");
+async function fetchMessageCount(env2, conversationId) {
+  const response = await fetch(
+    `${baseUrl(env2)}/rest/v1/messages?conversation_id=eq.${encodeURIComponent(conversationId)}&select=count`,
+    { headers: { ...restHeaders(env2), Prefer: "count=exact" } }
+  );
+  if (!response.ok) return 0;
+  const countHeader = response.headers.get("content-range");
+  if (countHeader) {
+    const match3 = countHeader.match(/\/(\d+)/);
+    if (match3) return parseInt(match3[1], 10);
+  }
+  const rows = await response.json();
+  return rows.length;
+}
+__name(fetchMessageCount, "fetchMessageCount");
+async function insertConversationSummary(env2, params) {
+  const response = await fetch(`${baseUrl(env2)}/rest/v1/conversation_summaries`, {
+    method: "POST",
+    headers: restHeaders(env2),
+    body: JSON.stringify({
+      conversation_id: params.conversationId,
+      message_start_idx: params.messageStartIdx,
+      message_end_idx: params.messageEndIdx,
+      summary_text: params.summaryText,
+      key_facts: params.keyFacts
+    })
+  });
+  if (!response.ok) throw new Error(`Failed to insert summary: ${response.status}`);
+  return await response.json();
+}
+__name(insertConversationSummary, "insertConversationSummary");
+async function matchMessages(env2, params) {
+  return callRpc(env2, "match_messages", {
+    query_embedding: params.queryEmbedding,
+    match_threshold: params.matchThreshold,
+    match_count: params.matchCount,
+    conv_id: params.conversationId
+  });
+}
+__name(matchMessages, "matchMessages");
+async function matchMemoryFacts(env2, params) {
+  return callRpc(env2, "match_memory_facts", {
+    query_embedding: params.queryEmbedding,
+    match_threshold: params.matchThreshold,
+    match_count: params.matchCount,
+    p_user_id: params.userId
+  });
+}
+__name(matchMemoryFacts, "matchMemoryFacts");
 
 // src/chat.ts
+var SUMMARIZE_CHUNK_SIZE = 10;
+var CHARS_PER_TOKEN = 4;
+var EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2";
+async function getEmbedding(text2, apiKey) {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://onyxai.app",
+        "X-Title": "OnyxAI"
+      },
+      body: JSON.stringify({ model: EMBED_MODEL, input: text2 })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data?.[0]?.embedding ?? [];
+  } catch {
+    return [];
+  }
+}
+__name(getEmbedding, "getEmbedding");
+function getLastUserContent(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== "user") continue;
+    const content = msg.content;
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      const textPart = content.find((p) => p.type === "text");
+      if (textPart?.text) return textPart.text;
+    }
+  }
+  return "";
+}
+__name(getLastUserContent, "getLastUserContent");
+async function classifySearchNeed(query, env2) {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env2.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://onyxai.app",
+        "X-Title": "OnyxAI"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "user",
+            content: `Does this query need real-time web search for current, accurate, or up-to-date information? Answer ONLY "yes" or "no": ${query}`
+          }
+        ],
+        max_tokens: 3
+      })
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.toLowerCase().includes("yes") ?? false;
+  } catch {
+    return false;
+  }
+}
+__name(classifySearchNeed, "classifySearchNeed");
 function estimateTokens(text2) {
-  return Math.max(1, Math.ceil(text2.length / 4));
+  return Math.max(1, Math.ceil(text2.length / CHARS_PER_TOKEN));
 }
 __name(estimateTokens, "estimateTokens");
 function modelConfig(modelId) {
   return CURATED_MODELS.find((model) => model.id === modelId) ?? CURATED_MODELS[0];
 }
 __name(modelConfig, "modelConfig");
+function buildSystemContext(summaries) {
+  const parts = [];
+  if (summaries.length) {
+    parts.push("[Conversation history summaries]");
+    for (const s of summaries) {
+      parts.push(`Messages ${s.message_start_idx}-${s.message_end_idx}: ${s.summary_text}`);
+      const facts = Array.isArray(s.key_facts) ? s.key_facts : [];
+      if (facts.length) parts.push(`Key facts: ${facts.join("; ")}`);
+    }
+  }
+  return parts.join("\n\n");
+}
+__name(buildSystemContext, "buildSystemContext");
 async function handleChat(c) {
   try {
     const env2 = c.env;
@@ -31628,7 +31774,7 @@ async function handleChat(c) {
     if (!body) {
       return c.json({ error: "invalid_json" }, 400);
     }
-    const messages = Array.isArray(body.messages) ? body.messages : null;
+    let messages = Array.isArray(body.messages) ? body.messages : null;
     if (!messages || messages.length === 0) {
       return c.json({ error: "missing_messages" }, 400);
     }
@@ -31653,109 +31799,604 @@ async function handleChat(c) {
         402
       );
     }
-    const client = new OpenRouter({ apiKey: env2.OPENROUTER_API_KEY });
-    const completion = await client.chat.send({
-      chatRequest: {
-        model: model.id,
-        messages,
-        stream: false
+    const enableSearch = body.enableSearch;
+    const forceSearch = body.forceSearch;
+    if (enableSearch !== false && env2.TAVILY_API_KEY) {
+      const lastUserContent = getLastUserContent(messages);
+      let shouldSearch = forceSearch === true;
+      if (!shouldSearch && lastUserContent) {
+        try {
+          shouldSearch = await classifySearchNeed(lastUserContent, env2);
+        } catch {
+        }
       }
-    });
-    const assistant = completion.choices[0]?.message?.content ?? JSON.stringify(completion);
-    const promptTokens = completion.usage?.promptTokens ?? estimateTokens(JSON.stringify(messages ?? []));
-    const completionTokens = completion.usage?.completionTokens ?? estimateTokens(assistant);
-    const totalTokens = completion.usage?.totalTokens ?? promptTokens + completionTokens;
-    const providerInputCostUsd = promptTokens / 1e6 * model.inputCostPerMToken;
-    const providerOutputCostUsd = completionTokens / 1e6 * model.outputCostPerMToken;
-    const providerTotalCostUsd = providerInputCostUsd + providerOutputCostUsd;
-    const chargedTotalCostInr = model.isFree ? 0 : Math.ceil(providerTotalCostUsd * GLOBAL_MARKUP * USD_TO_INR * 100) / 100;
-    const frontierCostUsd = promptTokens / 1e6 * FRONTIER_BASELINE.inputCostPerMToken + completionTokens / 1e6 * FRONTIER_BASELINE.outputCostPerMToken;
-    const savingsVsFrontierUsd = Math.max(0, frontierCostUsd - providerTotalCostUsd);
-    let insertedMessageId = null;
+      if (shouldSearch && lastUserContent) {
+        try {
+          const tavilyRes = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              api_key: env2.TAVILY_API_KEY,
+              query: lastUserContent,
+              search_depth: "advanced",
+              include_answer: true,
+              max_results: 3
+            })
+          });
+          if (tavilyRes.ok) {
+            const tavilyData = await tavilyRes.json();
+            const results = tavilyData.results ?? [];
+            const answer = tavilyData.answer ?? "";
+            if (results.length) {
+              const searchCtx = "[Web search results]\n" + (answer ? `Summary: ${answer}
+
+` : "") + results.map((r) => `Title: ${r.title}
+Source: ${r.url}
+Content: ${r.content}`).join("\n\n") + "\n\nUse these sources if relevant to the user's question. Cite them as [1], [2], etc.";
+              messages = [{ role: "system", content: searchCtx }, ...messages];
+            }
+          }
+        } catch {
+        }
+      }
+    }
     const convId = body.conversationId ?? null;
-    try {
-      if (convId) {
-        const inserted = await insertAssistantMessage(env2, {
-          conversationId: convId,
-          userId,
-          content: assistant,
-          model: model.id
-        });
-        insertedMessageId = inserted.id;
+    let finalMessages = messages;
+    if (convId) {
+      const summaries = await fetchConversationSummaries(env2, convId);
+      const systemCtx = buildSystemContext(summaries);
+      if (systemCtx) {
+        finalMessages = [{ role: "system", content: systemCtx }, ...messages];
       }
-    } catch {
-    }
-    try {
-      const idempotencyKey = c.req.header("Idempotency-Key") ?? body.idempotency_key ?? null;
-      if (convId && insertedMessageId && idempotencyKey) {
-        await callRpc(env2, "record_usage_and_charge", {
-          p_user_id: userId,
-          p_conversation_id: convId,
-          p_message_id: insertedMessageId,
-          p_model: model.id,
-          p_prompt_tokens: promptTokens,
-          p_completion_tokens: completionTokens,
-          p_total_tokens: totalTokens,
-          p_provider_input_cost_usd: providerInputCostUsd,
-          p_provider_output_cost_usd: providerOutputCostUsd,
-          p_provider_total_cost_usd: providerTotalCostUsd,
-          p_charged_total_cost_inr: chargedTotalCostInr,
-          p_frontier_model: FRONTIER_BASELINE.id,
-          p_frontier_cost_usd: frontierCostUsd,
-          p_savings_vs_frontier_usd: savingsVsFrontierUsd,
-          p_idempotency_key: idempotencyKey
-        });
-        await updateConversationAfterAssistant(env2, {
-          conversationId: convId,
-          preview: assistant.slice(0, 160),
-          tokenCount: totalTokens,
-          model: model.id
-        });
+      const queryText = getLastUserContent(messages);
+      if (queryText) {
+        const queryEmbedding = await getEmbedding(queryText, env2.OPENROUTER_API_KEY);
+        if (queryEmbedding.length) {
+          const relevant = await matchMessages(env2, {
+            queryEmbedding,
+            matchThreshold: 0.55,
+            matchCount: 3,
+            conversationId: convId
+          }).catch(() => []);
+          if (relevant?.length) {
+            const retrievalCtx = "[Relevant context from earlier in this conversation]\n" + relevant.map((m) => `${m.role}: ${m.content}`).join("\n");
+            finalMessages = [{ role: "system", content: retrievalCtx }, ...finalMessages];
+          }
+        }
       }
-    } catch {
     }
-    return c.json({
-      ok: true,
-      route: "/chat",
-      assistant,
-      messageId: insertedMessageId,
-      usage: {
-        promptTokens,
-        completionTokens,
-        totalTokens,
-        chargedTotalCostInr
+    const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env2.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://onyxai.app",
+        "X-Title": "OnyxAI"
       },
-      note: "non_streaming",
-      cost_saving_message: "We are not streaming the model response to save server costs. You will receive the full reply once ready.",
-      provider: "openrouter"
+      body: JSON.stringify({
+        model: model.id,
+        messages: finalMessages,
+        stream: true,
+        max_tokens: model.maxOutput
+      })
+    });
+    if (!orResponse.ok) {
+      const errText = await orResponse.text().catch(() => "");
+      return c.json({ error: "openrouter_error", status: orResponse.status, detail: errText }, 502);
+    }
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+    let fullContent = "";
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let totalTokens = 0;
+    const writeStream = (async () => {
+      try {
+        const reader = orResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data: ")) continue;
+            const data = trimmed.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content ?? "";
+              if (delta) fullContent += delta;
+              if (parsed.usage) {
+                promptTokens = parsed.usage.prompt_tokens ?? promptTokens;
+                completionTokens = parsed.usage.completion_tokens ?? completionTokens;
+                totalTokens = parsed.usage.total_tokens ?? totalTokens;
+              }
+              await writer.write(encoder.encode(`data: ${data}
+
+`));
+            } catch {
+            }
+          }
+        }
+        if (!promptTokens) promptTokens = estimateTokens(JSON.stringify(finalMessages ?? []));
+        if (!completionTokens) completionTokens = estimateTokens(fullContent);
+        if (!totalTokens) totalTokens = promptTokens + completionTokens;
+        const providerInputCostUsd = promptTokens / 1e6 * model.inputCostPerMToken;
+        const providerOutputCostUsd = completionTokens / 1e6 * model.outputCostPerMToken;
+        const providerTotalCostUsd = providerInputCostUsd + providerOutputCostUsd;
+        const chargedTotalCostInr = model.isFree ? 0 : Math.ceil(providerTotalCostUsd * GLOBAL_MARKUP * USD_TO_INR * 100) / 100;
+        const frontierCostUsd = promptTokens / 1e6 * FRONTIER_BASELINE.inputCostPerMToken + completionTokens / 1e6 * FRONTIER_BASELINE.outputCostPerMToken;
+        const savingsVsFrontierUsd = Math.max(0, frontierCostUsd - providerTotalCostUsd);
+        let insertedMessageId = null;
+        try {
+          if (convId) {
+            const inserted = await insertAssistantMessage(env2, {
+              conversationId: convId,
+              userId,
+              content: fullContent,
+              model: model.id
+            });
+            insertedMessageId = inserted.id;
+          }
+        } catch {
+        }
+        try {
+          const idempotencyKey = c.req.header("Idempotency-Key") ?? body.idempotency_key ?? null;
+          if (convId && insertedMessageId && idempotencyKey) {
+            await callRpc(env2, "record_usage_and_charge", {
+              p_user_id: userId,
+              p_conversation_id: convId,
+              p_message_id: insertedMessageId,
+              p_model: model.id,
+              p_prompt_tokens: promptTokens,
+              p_completion_tokens: completionTokens,
+              p_total_tokens: totalTokens,
+              p_provider_input_cost_usd: providerInputCostUsd,
+              p_provider_output_cost_usd: providerOutputCostUsd,
+              p_provider_total_cost_usd: providerTotalCostUsd,
+              p_charged_total_cost_inr: chargedTotalCostInr,
+              p_frontier_model: FRONTIER_BASELINE.id,
+              p_frontier_cost_usd: frontierCostUsd,
+              p_savings_vs_frontier_usd: savingsVsFrontierUsd,
+              p_idempotency_key: idempotencyKey
+            });
+            await updateConversationAfterAssistant(env2, {
+              conversationId: convId,
+              preview: fullContent.slice(0, 160),
+              tokenCount: totalTokens,
+              model: model.id
+            });
+          }
+        } catch {
+        }
+        const doneChunk = JSON.stringify({
+          ok: true,
+          messageId: insertedMessageId,
+          usage: { promptTokens, completionTokens, totalTokens, chargedTotalCostInr },
+          done: true
+        });
+        await writer.write(encoder.encode(`data: ${doneChunk}
+
+`));
+      } catch (streamErr) {
+        const errMsg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        await writer.write(encoder.encode(`data: {"error":${JSON.stringify(errMsg)}}
+
+`));
+      } finally {
+        await writer.close();
+      }
+    })();
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   } catch (err) {
     return c.json({ error: "proxy_error", detail: String(err) }, 500);
   }
 }
 __name(handleChat, "handleChat");
+async function handleSummarize(c) {
+  try {
+    const env2 = c.env;
+    const userId = c.get("userId");
+    const body = await c.req.json().catch(() => null);
+    if (!body?.conversationId) {
+      return c.json({ error: "missing_conversation_id" }, 400);
+    }
+    const convId = body.conversationId;
+    const messageCount = await fetchMessageCount(env2, convId);
+    if (messageCount < SUMMARIZE_CHUNK_SIZE * 2) {
+      return c.json({ ok: true, note: "too_few_messages" });
+    }
+    const startIdx = Math.max(0, messageCount - SUMMARIZE_CHUNK_SIZE * 2);
+    const endIdx = messageCount - SUMMARIZE_CHUNK_SIZE;
+    const chunk = await fetchMessagesRange(env2, convId, startIdx, endIdx);
+    if (chunk.length === 0) {
+      return c.json({ ok: true, note: "no_messages_in_range" });
+    }
+    const summarizationPrompt = 'Summarize the following conversation segment concisely. Preserve facts, decisions, and context the assistant will need later. Also list up to 5 key facts as a JSON array.\n\nRespond in this exact JSON format (no markdown code fences):\n{"summary":"...","key_facts":["fact1","fact2"]}\n\n' + chunk.map((m) => `${m.role}: ${m.content}`).join("\n\n");
+    if (!env2.OPENROUTER_API_KEY) {
+      return c.json({ error: "missing_openrouter_api_key" }, 501);
+    }
+    const summaryModel = CURATED_MODELS.find((m) => m.id === "google/gemini-2.5-flash-lite") ?? CURATED_MODELS[0];
+    const client = new OpenRouter({ apiKey: env2.OPENROUTER_API_KEY });
+    const completion = await client.chat.send({
+      chatRequest: {
+        model: summaryModel.id,
+        messages: [{ role: "user", content: summarizationPrompt }],
+        stream: false
+      }
+    });
+    const raw2 = completion.choices[0]?.message?.content ?? "";
+    let summaryText = "";
+    let keyFacts = [];
+    try {
+      const cleaned = raw2.replace(/```json\s*|\s*```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      summaryText = String(parsed.summary ?? "");
+      keyFacts = Array.isArray(parsed.key_facts) ? parsed.key_facts : [];
+    } catch {
+      summaryText = raw2.slice(0, 2e3);
+    }
+    await insertConversationSummary(env2, {
+      conversationId: convId,
+      messageStartIdx: startIdx,
+      messageEndIdx: endIdx,
+      summaryText,
+      keyFacts
+    });
+    return c.json({ ok: true, summary: summaryText, key_facts: keyFacts });
+  } catch (err) {
+    return c.json({ error: "summarize_error", detail: String(err) }, 500);
+  }
+}
+__name(handleSummarize, "handleSummarize");
+
+// src/embed.ts
+var EMBED_MODEL2 = "sentence-transformers/all-MiniLM-L6-v2";
+async function handleEmbed(c) {
+  try {
+    const env2 = c.env;
+    const body = await c.req.json().catch(() => null);
+    if (!body?.text || typeof body.text !== "string") {
+      return c.json({ error: "missing_text" }, 400);
+    }
+    if (!env2.OPENROUTER_API_KEY) {
+      return c.json({ error: "missing_openrouter_api_key" }, 501);
+    }
+    const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env2.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://onyxai.app",
+        "X-Title": "OnyxAI"
+      },
+      body: JSON.stringify({
+        model: EMBED_MODEL2,
+        input: body.text
+      })
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return c.json({ error: "embed_failed", status: res.status, detail: errText }, 502);
+    }
+    const data = await res.json();
+    const embedding = data.data?.[0]?.embedding ?? [];
+    return c.json({ ok: true, embedding });
+  } catch (err) {
+    return c.json({ error: "embed_error", detail: String(err) }, 500);
+  }
+}
+__name(handleEmbed, "handleEmbed");
 
 // src/memory.ts
-async function handleMemoryExtract(c) {
-  const env2 = c.env;
-  const userId = c.get("userId");
-  if (!env2.OPENAI_API_KEY || !env2.OPENROUTER_API_KEY) {
-    return c.json(
-      {
-        error: "missing_memory_env",
-        note: "OPENAI_API_KEY and OPENROUTER_API_KEY are both required for extraction + embeddings.",
-        userId
-      },
-      501
-    );
-  }
-  return c.json({
-    ok: true,
-    route: "/memory/extract",
-    note: "Memory extraction contract is scaffolded for the next checkpoint."
+var EXTRACTION_MODEL = "google/gemini-2.5-flash-lite";
+var EMBED_MODEL3 = "sentence-transformers/all-MiniLM-L6-v2";
+function restHeaders2(env2) {
+  const key = supabaseAdminKey(env2) ?? "";
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation"
+  };
+}
+__name(restHeaders2, "restHeaders");
+async function getEmbedding2(text2, apiKey) {
+  const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://onyxai.app",
+      "X-Title": "OnyxAI"
+    },
+    body: JSON.stringify({ model: EMBED_MODEL3, input: text2 })
   });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data?.[0]?.embedding ?? [];
+}
+__name(getEmbedding2, "getEmbedding");
+async function handleMemoryExtract(c) {
+  try {
+    const env2 = c.env;
+    const userId = c.get("userId");
+    if (!env2.OPENROUTER_API_KEY) {
+      return c.json({ error: "missing_openrouter_api_key" }, 501);
+    }
+    const baseUrl2 = supabaseUrl(env2);
+    if (!baseUrl2) {
+      return c.json({ error: "missing_supabase_url" }, 500);
+    }
+    const body = await c.req.json().catch(() => null);
+    const messages = body?.messages;
+    if (!messages?.length) {
+      const res = await fetch(
+        `${baseUrl2}/rest/v1/messages?user_id=eq.${encodeURIComponent(userId)}&select=role,content&order=created_at.desc&limit=40`,
+        { headers: restHeaders2(env2) }
+      );
+      if (!res.ok) {
+        return c.json({ error: "fetch_messages_failed", status: res.status }, 500);
+      }
+      const dbMessages = await res.json();
+      if (!dbMessages.length) {
+        return c.json({ ok: true, extracted: 0, note: "no_messages" });
+      }
+      const client2 = new OpenRouter({ apiKey: env2.OPENROUTER_API_KEY });
+      const completion2 = await client2.chat.send({
+        chatRequest: {
+          model: EXTRACTION_MODEL,
+          messages: [
+            {
+              role: "user",
+              content: 'Extract up to 5 personal facts about the user from these messages. Only include facts the user explicitly stated about themselves. Each fact must have a category: "learning", "preference", "project", or "personal". Estimate confidence from 0 to 1. Respond in this exact JSON format (no markdown code fences):\n[{"content":"...","category":"preference","confidence":0.9}]\n\nIf no personal facts found, return [].\n\n' + dbMessages.map((m) => `${m.role}: ${m.content}`).join("\n\n")
+            }
+          ],
+          stream: false
+        }
+      });
+      const raw3 = completion2.choices[0]?.message?.content ?? "";
+      let facts2 = [];
+      try {
+        const cleaned = raw3.replace(/```json\s*|\s*```/g, "").trim();
+        facts2 = JSON.parse(cleaned);
+        if (!Array.isArray(facts2)) facts2 = [];
+      } catch {
+        return c.json({ ok: true, extracted: 0, note: "parse_failed", raw: raw3.slice(0, 200) });
+      }
+      let inserted2 = 0;
+      for (const fact of facts2) {
+        if (!fact.content || !fact.category) continue;
+        const validCategories = ["learning", "preference", "project", "personal"];
+        if (!validCategories.includes(fact.category)) continue;
+        try {
+          const embedding = await getEmbedding2(fact.content, env2.OPENROUTER_API_KEY);
+          const insertRes = await fetch(`${baseUrl2}/rest/v1/memory_facts`, {
+            method: "POST",
+            headers: { ...restHeaders2(env2), Prefer: "resolution=ignore-duplicates" },
+            body: JSON.stringify({
+              user_id: userId,
+              content: fact.content,
+              category: fact.category,
+              embedding,
+              confidence: Math.min(1, Math.max(0, fact.confidence ?? 1)),
+              source_conversation_id: body?.conversationId ?? null
+            })
+          });
+          if (insertRes.ok || insertRes.status === 409) {
+            inserted2++;
+          }
+        } catch {
+        }
+      }
+      return c.json({ ok: true, extracted: inserted2 });
+    }
+    const client = new OpenRouter({ apiKey: env2.OPENROUTER_API_KEY });
+    const completion = await client.chat.send({
+      chatRequest: {
+        model: EXTRACTION_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: 'Extract up to 5 personal facts about the user from these messages. Only include facts the user explicitly stated. Output JSON: [{"content":"...","category":"learning|preference|project|personal","confidence":0.9}]\n\n' + messages.map((m) => `${m.role}: ${m.content}`).join("\n\n")
+          }
+        ],
+        stream: false
+      }
+    });
+    const raw2 = completion.choices[0]?.message?.content ?? "";
+    let facts = [];
+    try {
+      const cleaned = raw2.replace(/```json\s*|\s*```/g, "").trim();
+      facts = JSON.parse(cleaned);
+      if (!Array.isArray(facts)) facts = [];
+    } catch {
+      return c.json({ ok: true, extracted: 0 });
+    }
+    let inserted = 0;
+    for (const fact of facts) {
+      if (!fact.content || !fact.category) continue;
+      const validCategories = ["learning", "preference", "project", "personal"];
+      if (!validCategories.includes(fact.category)) continue;
+      try {
+        const embedding = await getEmbedding2(fact.content, env2.OPENROUTER_API_KEY);
+        const insertRes = await fetch(`${baseUrl2}/rest/v1/memory_facts`, {
+          method: "POST",
+          headers: { ...restHeaders2(env2), Prefer: "resolution=ignore-duplicates" },
+          body: JSON.stringify({
+            user_id: userId,
+            content: fact.content,
+            category: fact.category,
+            embedding,
+            confidence: Math.min(1, Math.max(0, fact.confidence ?? 1)),
+            source_conversation_id: body?.conversationId ?? null
+          })
+        });
+        if (insertRes.ok || insertRes.status === 409) inserted++;
+      } catch {
+      }
+    }
+    return c.json({ ok: true, extracted: inserted });
+  } catch (err) {
+    return c.json({ error: "extract_error", detail: String(err) }, 500);
+  }
 }
 __name(handleMemoryExtract, "handleMemoryExtract");
+
+// src/search.ts
+var TAVILY_URL = "https://api.tavily.com/search";
+var TOPIC_EXTRACTION_MODEL = "google/gemini-2.5-flash-lite";
+var EMBED_MODEL4 = "sentence-transformers/all-MiniLM-L6-v2";
+function restHeaders3(env2) {
+  const key = supabaseAdminKey(env2) ?? "";
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json"
+  };
+}
+__name(restHeaders3, "restHeaders");
+async function getEmbedding3(text2, apiKey) {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://onyxai.app",
+        "X-Title": "OnyxAI"
+      },
+      body: JSON.stringify({ model: EMBED_MODEL4, input: text2 })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data?.[0]?.embedding ?? [];
+  } catch {
+    return [];
+  }
+}
+__name(getEmbedding3, "getEmbedding");
+async function extractTopics(results, apiKey) {
+  try {
+    const client = new OpenRouter({ apiKey });
+    const completion = await client.chat.send({
+      chatRequest: {
+        model: TOPIC_EXTRACTION_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: 'Given these search results, extract 3-5 topic tags as a JSON array of strings. Example: ["React", "state management", "Zustand"]\n\n' + results.map((r) => `${r.title}: ${r.content}`).join("\n")
+          }
+        ],
+        stream: false
+      }
+    });
+    const raw2 = completion.choices[0]?.message?.content ?? "";
+    const cleaned = raw2.replace(/```json\s*|\s*```/g, "").trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return [];
+  }
+}
+__name(extractTopics, "extractTopics");
+async function handleSearch(c) {
+  try {
+    const env2 = c.env;
+    const userId = c.get("userId");
+    if (!env2.TAVILY_API_KEY) {
+      return c.json({ error: "missing_tavily_api_key" }, 501);
+    }
+    if (!env2.OPENROUTER_API_KEY) {
+      return c.json({ error: "missing_openrouter_api_key" }, 501);
+    }
+    const body = await c.req.json().catch(() => null);
+    if (!body?.query || typeof body.query !== "string") {
+      return c.json({ error: "missing_query" }, 400);
+    }
+    const baseUrl2 = supabaseUrl(env2);
+    const tavilyRes = await fetch(TAVILY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: env2.TAVILY_API_KEY,
+        query: body.query,
+        search_depth: "advanced",
+        include_answer: true,
+        max_results: 5
+      })
+    });
+    if (!tavilyRes.ok) {
+      const errText = await tavilyRes.text().catch(() => "");
+      return c.json({ error: "tavily_search_failed", status: tavilyRes.status, detail: errText }, 502);
+    }
+    const tavilyData = await tavilyRes.json();
+    const results = tavilyData.results ?? [];
+    const answer = tavilyData.answer ?? "";
+    let topics = [];
+    if (results.length && env2.OPENROUTER_API_KEY) {
+      topics = await extractTopics(results, env2.OPENROUTER_API_KEY);
+    }
+    let relatedFacts = [];
+    try {
+      const queryEmbedding = await getEmbedding3(body.query, env2.OPENROUTER_API_KEY);
+      if (queryEmbedding.length) {
+        const facts = await matchMemoryFacts(env2, {
+          queryEmbedding,
+          matchThreshold: 0.72,
+          matchCount: 3,
+          userId
+        });
+        relatedFacts = facts?.map((f) => ({ content: f.content, category: f.category })) ?? [];
+      }
+    } catch {
+    }
+    let searchId = null;
+    if (baseUrl2) {
+      try {
+        const insertRes = await fetch(`${baseUrl2}/rest/v1/search_results`, {
+          method: "POST",
+          headers: { ...restHeaders3(env2), Prefer: "return=representation" },
+          body: JSON.stringify({
+            user_id: userId,
+            conversation_id: body.conversationId ?? null,
+            query: body.query,
+            results,
+            summary: answer,
+            topics
+          })
+        });
+        if (insertRes.ok) {
+          const rows = await insertRes.json();
+          searchId = rows[0]?.id ?? null;
+        }
+      } catch {
+      }
+    }
+    return c.json({
+      ok: true,
+      results,
+      answer,
+      topics,
+      relatedFacts,
+      searchId
+    });
+  } catch (err) {
+    return c.json({ error: "search_error", detail: String(err) }, 500);
+  }
+}
+__name(handleSearch, "handleSearch");
 
 // src/payments.ts
 function json2(payload, status = 200) {
@@ -31889,6 +32530,101 @@ async function handlePaymentWebhook(c) {
 }
 __name(handlePaymentWebhook, "handlePaymentWebhook");
 
+// src/upload.ts
+var VISION_MODEL = "google/gemini-2.5-flash-lite";
+function restHeaders4(env2) {
+  const key = supabaseAdminKey(env2) ?? "";
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation"
+  };
+}
+__name(restHeaders4, "restHeaders");
+async function handleUploadAnalyze(c) {
+  try {
+    const env2 = c.env;
+    const userId = c.get("userId");
+    if (!env2.OPENROUTER_API_KEY) {
+      return c.json({ error: "missing_openrouter_api_key" }, 501);
+    }
+    const baseUrl2 = supabaseUrl(env2);
+    if (!baseUrl2) {
+      return c.json({ error: "missing_supabase_url" }, 500);
+    }
+    const body = await c.req.json().catch(() => null);
+    if (!body?.uploadId || !body?.storagePath || !body?.mimeType) {
+      return c.json({ error: "missing_required_fields" }, 400);
+    }
+    const isImage = body.mimeType.startsWith("image/");
+    const publicUrl = `${baseUrl2}/storage/v1/object/public/${body.storagePath}`;
+    let contentType = "";
+    let description = "";
+    let transcribedText = "";
+    if (isImage) {
+      const client = new OpenRouter({ apiKey: env2.OPENROUTER_API_KEY });
+      const completion = await client.chat.send({
+        chatRequest: {
+          model: VISION_MODEL,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Describe this image in detail. If it contains text, transcribe all of it. If it's a diagram, explain what it depicts. Output JSON: {"type":"text|diagram|photo|screenshot|whiteboard","description":"...","transcribed_text":"..."}`
+                },
+                {
+                  type: "image_url",
+                  imageUrl: { url: publicUrl }
+                }
+              ]
+            }
+          ],
+          stream: false
+        }
+      });
+      const raw2 = completion.choices[0]?.message?.content ?? "";
+      try {
+        const cleaned = raw2.replace(/```json\s*|\s*```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        contentType = String(parsed.type ?? "photo");
+        description = String(parsed.description ?? "");
+        transcribedText = String(parsed.transcribed_text ?? "");
+      } catch {
+        description = raw2.slice(0, 2e3);
+        contentType = "photo";
+      }
+    } else {
+      contentType = body.mimeType.includes("pdf") ? "pdf" : "text";
+      description = `Uploaded file: ${body.storagePath}`;
+    }
+    const response = await fetch(`${baseUrl2}/rest/v1/uploads?id=eq.${encodeURIComponent(body.uploadId)}`, {
+      method: "PATCH",
+      headers: restHeaders4(env2),
+      body: JSON.stringify({
+        content_type: contentType,
+        description,
+        transcribed_text: transcribedText || null
+      })
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      return c.json({ error: "update_failed", detail: errText }, 500);
+    }
+    return c.json({
+      ok: true,
+      contentType,
+      description,
+      transcribedText: transcribedText || null
+    });
+  } catch (err) {
+    return c.json({ error: "analyze_error", detail: String(err) }, 500);
+  }
+}
+__name(handleUploadAnalyze, "handleUploadAnalyze");
+
 // src/index.ts
 var app = new Hono2();
 app.use(
@@ -31904,7 +32640,11 @@ app.post("/payments/webhook", handlePaymentWebhook);
 app.post("/payments/create-order", authMiddleware, handleCreatePaymentOrder);
 app.post("/payments/verify", authMiddleware, handleVerifyPayment);
 app.post("/chat", authMiddleware, handleChat);
+app.post("/chat/summarize", authMiddleware, handleSummarize);
+app.post("/upload/analyze", authMiddleware, handleUploadAnalyze);
+app.post("/embed", authMiddleware, handleEmbed);
 app.post("/memory/extract", authMiddleware, handleMemoryExtract);
+app.post("/search", authMiddleware, handleSearch);
 var src_default = app;
 
 // node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
@@ -31948,7 +32688,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env2, _ctx, middlewareCtx
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-3EvB9F/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-nk21TW/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -31980,7 +32720,7 @@ function __facade_invoke__(request, env2, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-3EvB9F/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-nk21TW/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;

@@ -12,6 +12,10 @@ interface InputBarProps {
   onChangeDraft: (value: string) => void;
   onSend: () => void;
   onStop: () => void;
+  onAttach?: () => void;
+  onCamera?: () => void;
+  onToggleSearch?: () => void;
+  searchMode?: "auto" | "force" | "off";
   streaming: boolean;
   attachments: Attachment[];
   canSend: boolean;
@@ -25,6 +29,10 @@ export function InputBar({
   onChangeDraft,
   onSend,
   onStop,
+  onAttach,
+  onCamera,
+  onToggleSearch,
+  searchMode,
   streaming,
   attachments,
   canSend,
@@ -66,8 +74,25 @@ export function InputBar({
         />
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <View style={{ flexDirection: "row", gap: 14 }}>
-            <Ionicons color={Colors.textSecondary} name="camera-outline" size={18} />
-            <Ionicons color={Colors.textSecondary} name="attach-outline" size={18} />
+            <Pressable onPress={onCamera} hitSlop={8}>
+              <Ionicons color={Colors.textSecondary} name="camera-outline" size={18} />
+            </Pressable>
+            <Pressable onPress={onAttach} hitSlop={8}>
+              <Ionicons color={Colors.textSecondary} name="attach-outline" size={18} />
+            </Pressable>
+            {onToggleSearch ? (
+              <Pressable onPress={onToggleSearch} hitSlop={8}>
+                <Text
+                  style={{
+                    color: searchMode === "off" ? Colors.textTertiary : Colors.accent,
+                    fontSize: 11,
+                    fontWeight: "600",
+                  }}
+                >
+                  {searchMode === "force" ? "🌐" : searchMode === "auto" ? "🌐" : "🌐"}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
           <Pressable
             disabled={!streaming && !canSend}

@@ -17,6 +17,9 @@ export interface Attachment {
   name: string;
   type: "image" | "file";
   uri?: string;
+  remoteUrl?: string;
+  mimeType?: string;
+  sizeBytes?: number;
 }
 
 export interface Message {
@@ -26,6 +29,7 @@ export interface Message {
   content: string;
   model?: string;
   hasAttachment?: boolean;
+  attachments?: Attachment[];
   createdAt: string;
 }
 

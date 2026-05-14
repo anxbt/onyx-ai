@@ -187,3 +187,127 @@ export async function upsertModelCatalog(env: Env, rows: Array<Record<string, un
     throw new Error(`Failed to sync model catalog: ${response.status} ${body}`);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Conversation summaries (Wave 1)                                   */
+/* ------------------------------------------------------------------ */
+
+export async function fetchConversationSummaries(env: Env, conversationId: string) {
+  const response = await fetch(
+    `${baseUrl(env)}/rest/v1/conversation_summaries?conversation_id=eq.${encodeURIComponent(conversationId)}&select=message_start_idx,message_end_idx,summary_text,key_facts&order=message_end_idx.asc`,
+    { headers: restHeaders(env) },
+  );
+  if (!response.ok) return [];
+  return (await response.json()) as Array<{
+    message_start_idx: number;
+    message_end_idx: number;
+    summary_text: string;
+    key_facts: string[];
+  }>;
+}
+
+export async function fetchMessagesRange(env: Env, conversationId: string, startIdx: number, endIdx: number) {
+  const response = await fetch(
+    `${baseUrl(env)}/rest/v1/messages?conversation_id=eq.${encodeURIComponent(conversationId)}&select=role,content&order=created_at.asc&offset=${startIdx}&limit=${endIdx - startIdx}`,
+    { headers: restHeaders(env) },
+  );
+  if (!response.ok) return [];
+  return (await response.json()) as Array<{ role: string; content: string }>;
+}
+
+export async function fetchMessageCount(env: Env, conversationId: string) {
+  const response = await fetch(
+    `${baseUrl(env)}/rest/v1/messages?conversation_id=eq.${encodeURIComponent(conversationId)}&select=count`,
+    { headers: { ...restHeaders(env), Prefer: "count=exact" } },
+  );
+  if (!response.ok) return 0;
+  const countHeader = response.headers.get("content-range");
+  if (countHeader) {
+    const match = countHeader.match(/\/(\d+)/);
+    if (match) return parseInt(match[1], 10);
+  }
+  const rows = (await response.json()) as Array<Record<string, unknown>>;
+  return rows.length;
+}
+
+export async function insertConversationSummary(
+  env: Env,
+  params: {
+    conversationId: string;
+    messageStartIdx: number;
+    messageEndIdx: number;
+    summaryText: string;
+    keyFacts: string[];
+  },
+) {
+  const response = await fetch(`${baseUrl(env)}/rest/v1/conversation_summaries`, {
+    method: "POST",
+    headers: restHeaders(env),
+    body: JSON.stringify({
+      conversation_id: params.conversationId,
+      message_start_idx: params.messageStartIdx,
+      message_end_idx: params.messageEndIdx,
+      summary_text: params.summaryText,
+      key_facts: params.keyFacts,
+    }),
+  });
+  if (!response.ok) throw new Error(`Failed to insert summary: ${response.status}`);
+  return (await response.json()) as Array<{ id: string }>;
+}
+
+/* ------------------------------------------------------------------ */
+/*  match_messages RPC (Wave 1)                                       */
+/* ------------------------------------------------------------------ */
+
+export async function matchMessages(
+  env: Env,
+  params: {
+    queryEmbedding: number[];
+    matchThreshold: number;
+    matchCount: number;
+    conversationId: string;
+  },
+) {
+  return callRpc<
+    Array<{
+      id: string;
+      role: string;
+      content: string;
+      created_at: string;
+      similarity: number;
+    }>
+  >(env, "match_messages", {
+    query_embedding: params.queryEmbedding,
+    match_threshold: params.matchThreshold,
+    match_count: params.matchCount,
+    conv_id: params.conversationId,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  match_memory_facts RPC (Wave 4)                                   */
+/* ------------------------------------------------------------------ */
+
+export async function matchMemoryFacts(
+  env: Env,
+  params: {
+    queryEmbedding: number[];
+    matchThreshold: number;
+    matchCount: number;
+    userId: string;
+  },
+) {
+  return callRpc<
+    Array<{
+      id: string;
+      content: string;
+      category: string;
+      similarity: number;
+    }>
+  >(env, "match_memory_facts", {
+    query_embedding: params.queryEmbedding,
+    match_threshold: params.matchThreshold,
+    match_count: params.matchCount,
+    p_user_id: params.userId,
+  });
+}

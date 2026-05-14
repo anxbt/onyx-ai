@@ -1,4 +1,4 @@
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 import { Colors } from "@/constants/colors";
 import type { Attachment } from "@/types";
@@ -22,10 +22,24 @@ export function AttachmentPreview({ attachments }: AttachmentPreviewProps) {
             borderColor: Colors.border,
             borderRadius: 12,
             borderWidth: 1,
-            padding: 10,
+            padding: 8,
           }}
         >
-          <Text style={{ color: Colors.textPrimary }}>{attachment.name}</Text>
+          {attachment.type === "image" && attachment.uri ? (
+            <Image
+              source={{ uri: attachment.uri }}
+              style={{
+                width: 80,
+                height: 60,
+                borderRadius: 8,
+                backgroundColor: Colors.surface,
+              }}
+              resizeMode="cover"
+            />
+          ) : null}
+          <Text style={{ color: Colors.textPrimary, fontSize: 12, marginTop: 4 }} numberOfLines={1}>
+            {attachment.name}
+          </Text>
         </View>
       ))}
     </View>

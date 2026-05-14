@@ -44,3 +44,30 @@ Validation prompt:
 Validation prompt:
 `Run through staging on device before enabling real top-ups or wider testing.`
 
+---
+
+## Wave 1: Context-Window Management (Complete)
+
+**Date:** 2026-05-13
+
+### Changes
+
+1. **DB Schema** (`supabase/migrations/0004_wave1_context_window.sql`)
+   - Added `conversation_summaries` table with GIN index on `key_facts`.
+   - Added `pgvector` extension + `match_messages` RPC for semantic retrieval.
+   - Added `embedding` vector column to `messages`.
+
+2. **Worker** (`worker/src/`)
+   - New `POST /chat/summarize` endpoint (`handleSummarize`) — runs summarization on the 2nd-last 10-message chunk using the cheapest available model.
+   - Updated `POST /chat` (`handleChat`) — prepends summary context as a system message when `conversationId` is provided.
+   - Added `fetchConversationSummaries`, `fetchMessagesRange`, `fetchMessageCount`, `insertConversationSummary`, `matchMessages` helpers in `worker/src/supabase.ts`.
+
+3. **Mobile** (`hooks/useChat.ts`, `lib/openrouter.ts`, `lib/tokens.ts`)
+   - `useChat` trims request history to last **8 messages** before sending to worker.
+   - Auto-triggers `summarizeConversation()` every **10 messages** (fire-and-forget, errors swallowed).
+   - `estimateTokens()` updated to use `meta-llama/llama-4-scout:free` (128k context) as default.
+   - Added `summarizeConversation()` helper in `lib/openrouter.ts`.
+
+### Validation prompt:
+`Create a conversation with >10 messages and verify summaries appear in the DB + context is injected into new /chat requests.`
+

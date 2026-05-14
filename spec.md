@@ -65,7 +65,9 @@ Expo App (React Native)
 ---
 
 ## 3. Environment Variables
+How well is our memory system working?
 
+Because in wave 6, we have thought of implementing RAG, and in wave 4, we have thought of implementing semantic memory plus retrieval.
 ### Mobile `.env`
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co

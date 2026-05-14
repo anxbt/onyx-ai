@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
 import { estimateTokens } from "@/lib/tokens";
-import { chatFromWorker } from "@/lib/openrouter";
+import { streamChatFromWorker, summarizeConversation } from "@/lib/openrouter";
+import { getEmbedding, extractMemoryFacts } from "@/lib/memory";
 import {
   createConversation,
   fetchMessagesForConversation,
   insertUserMessage,
+  supabase,
   updateConversationSummary,
 } from "@/lib/supabase";
 import type { Attachment, Conversation, Message, SessionLike } from "@/types";
@@ -26,13 +28,11 @@ export function useChat({
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      abortRef.current?.();
     };
   }, []);
 
@@ -62,7 +62,7 @@ export function useChat({
     };
   }, [conversationId]);
 
-  async function sendMessage(content: string, attachments: Attachment[] = []) {
+  async function sendMessage(content: string, attachments: Attachment[] = [], search?: { enableSearch: boolean; forceSearch: boolean }) {
     const trimmed = content.trim();
     if (!trimmed || !session?.accessToken) {
       return;
@@ -76,66 +76,108 @@ export function useChat({
       setActiveConversationId(conversation.id);
       onConversationCreated?.(conversation);
     }
+    const convId = nextConversationId as string; // narrowed via check above
+    const token = session.accessToken as string; // narrowed via check above
 
-    const savedUserMessage = await insertUserMessage(session.user.id, nextConversationId, trimmed, attachments.length > 0);
+    const savedUserMessage = await insertUserMessage(session.user.id, convId, trimmed, attachments.length > 0);
 
     const userMessage: Message = {
       ...savedUserMessage,
-      conversationId: nextConversationId,
+      conversationId: convId,
       role: "user",
       content: trimmed,
       hasAttachment: attachments.length > 0,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
 
-    setMessages((current) => [...current, userMessage]);
+    const allMessages = [...messages, userMessage];
+    setMessages(allMessages);
     setStreaming(true);
     setStreamingContent("");
 
-    try {
-      const requestMessages: Message[] = [...messages, userMessage].map((message) => ({
-        id: message.id,
-        conversationId: message.conversationId,
-        role: message.role,
-        content: message.content,
-        createdAt: message.createdAt,
-      }));
+    // Wave 4: embed user message for future semantic retrieval (background)
+    getEmbedding(trimmed, token).then((embedding) => {
+      if (embedding.length && supabase) {
+        supabase.from("messages").update({ embedding }).eq("id", savedUserMessage.id).then(
+          () => {},
+          () => {},
+        );
+      }
+    }).catch(() => {});
 
-      const res = await chatFromWorker({
-        accessToken: session.accessToken,
-        conversationId: nextConversationId,
-        messages: requestMessages,
-        modelId,
-      });
-      const assistantText = res?.assistant ?? (res?.choices && res.choices[0]?.message?.content) ?? JSON.stringify(res ?? {});
-      const assistantMessage: Message = {
-        id: res?.messageId ?? `assistant-${Date.now()}`,
-        conversationId: nextConversationId,
-        role: "assistant",
-        content: assistantText,
-        model: modelId,
-        createdAt: new Date().toISOString(),
-      };
-
-      setMessages((current) => [...current, assistantMessage]);
-      await updateConversationSummary(
-        nextConversationId,
-        trimmed.slice(0, 120),
-        modelId,
-        estimateTokens([...requestMessages, assistantMessage].map((message) => message.content).join(" ")),
-      );
-      setStreaming(false);
-      setStreamingContent("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send message");
-      setStreaming(false);
-      setStreamingContent("");
+    // Wave 4: trigger memory extraction every 15 messages (fire-and-forget)
+    const totalMessageCount = allMessages.length + 1;
+    if (totalMessageCount > 0 && totalMessageCount % 15 === 0) {
+      extractMemoryFacts(convId, token);
     }
+
+    const requestMessages: Message[] = allMessages.slice(-8).map((message) => ({
+      id: message.id,
+      conversationId: message.conversationId,
+      role: message.role,
+      content: message.content,
+      createdAt: message.createdAt,
+    }));
+
+    let finalContent = "";
+
+    const cancel = streamChatFromWorker({
+      accessToken: token,
+      conversationId: convId,
+      messages: requestMessages,
+      modelId,
+      attachments: attachments.length > 0 ? attachments : undefined,
+      enableSearch: search?.enableSearch,
+      forceSearch: search?.forceSearch,
+      callbacks: {
+        onContent: (accumulated) => {
+          finalContent = accumulated;
+          setStreamingContent(accumulated);
+        },
+        onDone: (result) => {
+          const assistantMessage: Message = {
+            id: result.messageId ?? `assistant-${Date.now()}`,
+            conversationId: convId,
+            role: "assistant",
+            content: finalContent || "",
+            model: modelId,
+            createdAt: new Date().toISOString(),
+          };
+
+          setMessages((current) => [...current, assistantMessage]);
+          setStreaming(false);
+          setStreamingContent("");
+
+          updateConversationSummary(
+            convId,
+            trimmed.slice(0, 120),
+            modelId,
+            estimateTokens([...requestMessages, assistantMessage].map((message) => message.content).join(" ")),
+          ).catch(() => {});
+
+          // Wave 1: trigger summarization every 10 messages
+          const totalMessageCount = allMessages.length + 1;
+          if (totalMessageCount > 0 && totalMessageCount % 10 === 0) {
+            summarizeConversation({
+              accessToken: token,
+              conversationId: convId,
+            }).catch(() => {});
+          }
+        },
+        onError: (err) => {
+          setError(err.message || "Could not send message");
+          setStreaming(false);
+          setStreamingContent("");
+        },
+      },
+    });
+
+    abortRef.current = cancel;
   }
 
   function stopStreaming() {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
+    abortRef.current?.();
+    abortRef.current = null;
     setStreaming(false);
   }
 

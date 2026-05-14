@@ -8,4 +8,5 @@ export interface Env {
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   OPENAI_API_KEY?: string;
+  TAVILY_API_KEY?: string;
 }

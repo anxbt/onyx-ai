@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
@@ -32,6 +32,21 @@ function MessageBubbleComponent({ message, isStreaming }: MessageBubbleProps) {
       {!isUser && model ? (
         <Text style={{ color: Colors.textTertiary, fontSize: 12, fontWeight: "700" }}>{model.displayName}</Text>
       ) : null}
+      {message.attachments?.map((att) =>
+        att.type === "image" && att.remoteUrl ? (
+          <Image
+            key={att.id}
+            source={{ uri: att.remoteUrl }}
+            style={{
+              width: "100%",
+              aspectRatio: 4 / 3,
+              borderRadius: 10,
+              backgroundColor: Colors.surfaceElevated,
+            }}
+            resizeMode="cover"
+          />
+        ) : null,
+      )}
       <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
       {isStreaming ? <StreamingIndicator /> : null}
     </View>

@@ -14,6 +14,8 @@ import { FREE_MODEL_ID } from "@/constants/models";
 import { useAppStore } from "@/store/app";
 import { useChat } from "@/hooks/useChat";
 import { useAuth } from "@/hooks/useAuth";
+import { pickImageFromCamera, pickImageFromGallery, pickDocument, uploadToStorage } from "@/lib/uploads";
+import type { Attachment } from "@/types";
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -26,6 +28,8 @@ export default function ChatScreen() {
   const creditBalance = profile?.creditBalance ?? 0;
   const [draft, setDraft] = useState("");
   const [selectorVisible, setSelectorVisible] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [searchMode, setSearchMode] = useState<"auto" | "force" | "off">("auto");
   const { messages, streaming, streamingContent, error, sendMessage, stopStreaming } = useChat({
     conversationId: activeConversationId,
     modelId: activeModelId,
@@ -34,6 +38,53 @@ export default function ChatScreen() {
   });
 
   const activeModel = getModelConfig(activeModelId);
+
+  const handleCamera = async () => {
+    const attachment = await pickImageFromCamera();
+    if (attachment) {
+      setAttachments((prev) => [...prev, attachment]);
+    }
+  };
+
+  const handleAttach = async () => {
+    const image = await pickImageFromGallery();
+    if (image) {
+      setAttachments((prev) => [...prev, image]);
+      return;
+    }
+    const doc = await pickDocument();
+    if (doc) {
+      setAttachments((prev) => [...prev, doc]);
+    }
+  };
+
+  const toggleSearch = () => {
+    setSearchMode((prev) => (prev === "auto" ? "force" : prev === "force" ? "off" : "auto"));
+  };
+
+  const handleSend = async () => {
+    const nextDraft = draft;
+    const currentAttachments = [...attachments];
+    setDraft("");
+    setAttachments([]);
+
+    const userId = session?.user?.id;
+    if (!session?.accessToken || !userId) {
+      sendMessage(nextDraft, currentAttachments);
+      return;
+    }
+
+    const uploaded: Attachment[] = [];
+    for (const att of currentAttachments) {
+      const result = await uploadToStorage(att, userId);
+      if (result) uploaded.push(result);
+    }
+
+    sendMessage(nextDraft, uploaded, {
+      enableSearch: searchMode !== "off",
+      forceSearch: searchMode === "force",
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && creditBalance <= 0 && !activeModel.isFree) {
@@ -88,17 +139,17 @@ export default function ChatScreen() {
           />
         </View>
         <InputBar
-          attachments={[]}
-          canSend={draft.trim().length > 0}
+          attachments={attachments}
+          canSend={draft.trim().length > 0 || attachments.length > 0}
           creditBalance={creditBalance}
           draft={draft}
           isFreeModel={activeModel.isFree}
           onChangeDraft={setDraft}
-          onSend={() => {
-            const nextDraft = draft;
-            setDraft("");
-            sendMessage(nextDraft);
-          }}
+          onAttach={handleAttach}
+          onCamera={handleCamera}
+          onToggleSearch={toggleSearch}
+          searchMode={searchMode}
+          onSend={handleSend}
           onStop={stopStreaming}
           onTopUp={() => router.push("/credits")}
           streaming={streaming}
