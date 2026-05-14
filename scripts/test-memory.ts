@@ -10,7 +10,7 @@
 
 const WORKER_URL = process.env.EXPO_PUBLIC_WORKER_URL || "http://localhost:8787";
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://tvvgferannivwdltjtjs.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || "sb_secret_XPTk9eMuL-pPuFcUWOmr9Q_S0S_bypL";
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || "";
 
 const BEARER_TOKEN = process.argv[2];
 if (!BEARER_TOKEN) {
