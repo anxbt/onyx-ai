@@ -16,6 +16,17 @@ import {
   parsePlaceholderIndex,
   streamingSafeContent,
 } from "@/lib/markdown";
+import { Roadmap } from "@/components/artifacts/Roadmap";
+import { Flowchart } from "@/components/artifacts/Flowchart";
+import { Chart } from "@/components/artifacts/Chart";
+import { HtmlArtifact } from "@/components/artifacts/HtmlArtifact";
+import { PdfCard } from "@/components/artifacts/PdfCard";
+
+function extractDataAttr(html: string, attr: string): string | undefined {
+  const re = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`, "i");
+  const m = html.slice(0, 300).match(re);
+  return m ? m[1] : undefined;
+}
 
 interface MarkdownRendererProps {
   content: string;
@@ -229,10 +240,30 @@ function createCustomRules(
   placeholders: ReturnType<typeof extractMath>["placeholders"]
 ): RenderRules {
   return {
-    // Code blocks (fenced)
+    // Code blocks (fenced) — includes artifact detection
     fence: (node) => {
       const info = (node as any).sourceInfo || (node as any).info || "";
       const code = node.content || "";
+      const lang = info.trim().toLowerCase();
+
+      if (lang === "roadmap") {
+        return <Roadmap key={node.key} data={code} />;
+      }
+      if (lang === "flowchart") {
+        return <Flowchart key={node.key} data={code} />;
+      }
+      if (lang === "chart") {
+        return <Chart key={node.key} data={code} />;
+      }
+      if (lang === "html") {
+        const dataType = extractDataAttr(code, "data-type");
+        const dataTitle = extractDataAttr(code, "data-title");
+        if (dataType === "pdf") {
+          return <PdfCard key={node.key} html={code} title={dataTitle} />;
+        }
+        return <HtmlArtifact key={node.key} html={code} />;
+      }
+
       return (
         <View key={node.key}>
           <CodeBlock code={code} language={info} />

@@ -25,6 +25,16 @@
 # ai-models
 - Use Google Gemini 2.5 Flash Lite as the primary model for cost-effective inference. Confidence: 0.70
 - Use google/gemini-2.5-flash-lite for conversation summarization (not the cheapest free model). Confidence: 0.70
+- Implement specific models for specific roles via OpenRouter: GLM for structured presentation, Qwen for conversational tutoring, DeepSeek for deep analytical reasoning, a creativity-focused model for creative ideation, Kimi, an OCR model for document parsing, and InternLM. Confidence: 0.75
+
+# design
+- For generated artifacts (PDFs, slides, exports): use solid colors only (no gradients), limit to 3 colors max (bg, text, accent), use asymmetric spacing between sections, no decorative shapes or geometric ornaments, left-aligned only (no centered heroes or 3-column grids), and mix type weights across headings. Confidence: 0.85
+- Prefer manual trigger buttons for Firecrawl/document ingestion over automatic crawling — let users explicitly choose when to deep-extract. Confidence: 0.65
 
 # environment
 - For demo/prototyping, keep all environment variables in .env file rather than splitting across platform secrets. Confidence: 0.65
+
+# workflow
+- Create handoff.md in the project root folder (not .commandcode/) so it's visible in the user's file explorer. Confidence: 0.80
+- Clear Zustand persisted storage with `useStore.persist.clearStorage()` when stale cached store values (like model IDs) cause mismatches after config changes. Confidence: 0.65
+- Clear Expo Metro bundler cache with `npx expo start --clear` when runtime behavior doesn't match source code after file changes. Confidence: 0.65

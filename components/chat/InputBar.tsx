@@ -21,6 +21,7 @@ interface InputBarProps {
   canSend: boolean;
   creditBalance: number;
   isFreeModel: boolean;
+  isSuperuser?: boolean;
   onTopUp?: () => void;
 }
 
@@ -38,9 +39,10 @@ export function InputBar({
   canSend,
   creditBalance,
   isFreeModel,
+  isSuperuser,
   onTopUp,
 }: InputBarProps) {
-  if (creditBalance <= 0 && !isFreeModel) {
+  if (creditBalance <= 0 && !isFreeModel && !isSuperuser) {
     return <Button label="Top up credits to continue" onPress={onTopUp} />;
   }
 

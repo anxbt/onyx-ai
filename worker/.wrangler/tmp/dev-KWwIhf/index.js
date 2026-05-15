@@ -31412,82 +31412,116 @@ var FRONTIER_BASELINE = {
 };
 var CURATED_MODELS = [
   {
-    id: "google/gemini-2.5-flash-lite",
-    displayName: "Gemini 2.5 Flash Lite",
-    provider: "Google",
-    supportsVision: true,
-    supportsReasoning: false,
-    isFree: false,
-    inputCostPerMToken: 0.1,
-    outputCostPerMToken: 0.4,
-    contextWindow: 1e6,
-    maxOutput: 64e3,
-    description: "Fast and cheap. Best for everyday conversation."
-  },
-  {
     id: "qwen/qwen3-coder:free",
     displayName: "Qwen3 Coder",
     provider: "Alibaba",
-    supportsVision: false,
+    role: "free",
+    modality: "text",
     supportsReasoning: false,
     isFree: true,
     inputCostPerMToken: 0,
     outputCostPerMToken: 0,
     contextWindow: 262e3,
-    maxOutput: 8192,
-    description: "Free model. Great for onboarding and lightweight tasks."
+    maxOutput: 262e3,
+    description: "Free. Good for onboarding and quick tasks."
   },
   {
-    id: "minimax/minimax-m2.7",
-    displayName: "MiniMax Fast",
-    provider: "MiniMax",
-    supportsVision: true,
-    supportsReasoning: false,
+    id: "z-ai/glm-5.1",
+    displayName: "GLM-5.1",
+    provider: "Zhipu AI",
+    role: "structured",
+    modality: "text",
+    supportsReasoning: true,
     isFree: false,
-    inputCostPerMToken: 0.3,
-    outputCostPerMToken: 1.1,
+    inputCostPerMToken: 0.98,
+    outputCostPerMToken: 3.08,
+    contextWindow: 202752,
+    maxOutput: 202752,
+    description: "Structured presentation. Best for formal documents, slide outlines, and JSON artifacts."
+  },
+  {
+    id: "qwen/qwen3.6-plus",
+    displayName: "Qwen3.6 Plus",
+    provider: "Alibaba",
+    role: "tutoring",
+    modality: "text+image+video",
+    supportsReasoning: true,
+    isFree: false,
+    inputCostPerMToken: 0.325,
+    outputCostPerMToken: 1.95,
     contextWindow: 1e6,
-    maxOutput: 8192,
-    description: "Fast and cheap. Best for everyday conversation."
+    maxOutput: 65536,
+    description: "Conversational tutoring with vision. Patient, explains concepts clearly, great for learning."
   },
   {
     id: "deepseek/deepseek-v3.2",
-    displayName: "DeepSeek Smart",
+    displayName: "DeepSeek V3.2",
     provider: "DeepSeek",
-    supportsVision: false,
+    role: "reasoning",
+    modality: "text",
     supportsReasoning: true,
     isFree: false,
-    inputCostPerMToken: 0.35,
-    outputCostPerMToken: 1.4,
+    inputCostPerMToken: 0.252,
+    outputCostPerMToken: 0.378,
     contextWindow: 131072,
-    maxOutput: 16384,
-    description: "Default paid model. Strong reasoning, great value."
+    maxOutput: 65536,
+    description: "Deep analytical reasoning. Best for code review, logic problems, and multi-step analysis."
   },
   {
-    id: "qwen/qwen3-6-plus",
-    displayName: "Qwen Plus",
+    id: "mistralai/mistral-small-2603",
+    displayName: "Mistral Small",
+    provider: "Mistral AI",
+    role: "creative",
+    modality: "text+image",
+    supportsReasoning: false,
+    isFree: false,
+    inputCostPerMToken: 0.15,
+    outputCostPerMToken: 0.6,
+    contextWindow: 262144,
+    maxOutput: 262144,
+    description: "Creative ideation with vision. Best for brainstorming, writing, and content generation."
+  },
+  {
+    id: "moonshotai/kimi-k2.5",
+    displayName: "Kimi K2.5",
+    provider: "Moonshot AI",
+    role: "context",
+    modality: "text+image",
+    supportsReasoning: true,
+    isFree: false,
+    inputCostPerMToken: 0.4,
+    outputCostPerMToken: 1.9,
+    contextWindow: 262144,
+    maxOutput: 262144,
+    description: "Long context analysis with vision. Best for large documents, images, and conversation recall."
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    displayName: "Gemini Flash Lite",
+    provider: "Google",
+    role: "ocr",
+    modality: "text+image+file+audio+video",
+    supportsReasoning: false,
+    isFree: false,
+    inputCostPerMToken: 0.1,
+    outputCostPerMToken: 0.4,
+    contextWindow: 1048576,
+    maxOutput: 65535,
+    description: "OCR, document parsing, images, audio. Extracts text from any format."
+  },
+  {
+    id: "qwen/qwen3-next-80b-a3b-instruct:free",
+    displayName: "Qwen3 Next",
     provider: "Alibaba",
-    supportsVision: true,
+    role: "bilingual",
+    modality: "text",
     supportsReasoning: true,
-    isFree: false,
-    inputCostPerMToken: 0.5,
-    outputCostPerMToken: 2,
-    contextWindow: 131072,
-    maxOutput: 16384,
-    description: "Balanced. Handles images and complex tasks well."
-  },
-  {
-    id: "zai-org/glm-5.1",
-    displayName: "GLM-5.1 Frontier",
-    provider: "Zhipu AI",
-    supportsVision: true,
-    supportsReasoning: true,
-    isFree: false,
-    inputCostPerMToken: 1.05,
-    outputCostPerMToken: 4.2,
-    contextWindow: 2e5,
-    maxOutput: 128e3,
-    description: "Frontier quality. Competes with Claude Opus on coding."
+    isFree: true,
+    inputCostPerMToken: 0,
+    outputCostPerMToken: 0,
+    contextWindow: 262144,
+    maxOutput: 65536,
+    description: "Bilingual reasoning. Strong across Chinese and English, free."
   }
 ];
 var TOP_UP_PACKS = {
@@ -31766,6 +31800,53 @@ function buildSystemContext(summaries) {
   return parts.join("\n\n");
 }
 __name(buildSystemContext, "buildSystemContext");
+function getArtifactInstructions() {
+  return `[Artifact formatting \u2014 use when the user asks for visual explanations]
+
+Generate styled HTML wrapped in code fences with language tag "html".
+
+For DOWNLOADABLE DOCUMENTS (PDFs, study guides, reports):
+Add data-type="pdf" and data-title="Your Title" to a root <div>. Example:
+
+\`\`\`html
+<div data-type="pdf" data-title="Railways Study Guide">
+  <h1>Indian Railways GK</h1>
+  <p>First locomotive ran in 1853 from Bombay to Thane.</p>
+  <h2>Railway Zones</h2>
+  <table>
+    <tr><td>Northern Railway</td><td>Delhi</td></tr>
+    <tr><td>Southern Railway</td><td>Chennai</td></tr>
+  </table>
+</div>
+\`\`\`
+
+For INLINE DIAGRAMS (flowcharts, roadmaps, comparison tables, charts):
+Add data-type="artifact" to a root <div>. Example:
+
+\`\`\`html
+<div data-type="artifact">
+  <div style="display:flex;gap:8px;">
+    <div style="background:#7C3AED;padding:8px 16px;border-radius:12px;color:white;">Step 1</div>
+    <span style="align-self:center;">\u2192</span>
+    <div style="background:#7C3AED;padding:8px 16px;border-radius:12px;color:white;">Step 2</div>
+  </div>
+</div>
+\`\`\`
+
+Design rules:
+- Dark background #0A0A0A, text #ECECED, accent #7C3AED (solid colors, no gradients)
+- Left-aligned only, no centered text
+- Max 3 colors per element
+- Labels under 40 characters
+- For trees: nested <ul> with border-left and indentation
+- For bar charts: CSS bars with percentage widths
+- For flowcharts: flexbox rows with arrows
+- Use <table> for structured comparisons
+- Use <section> with margin-top for large gaps between sections
+
+When the user asks for a PDF or document, ONLY output the \`\`\`html block \u2014 no markdown summary before or after. The app will show a download card.`;
+}
+__name(getArtifactInstructions, "getArtifactInstructions");
 async function handleChat(c) {
   try {
     const env2 = c.env;
@@ -31842,11 +31923,13 @@ Content: ${r.content}`).join("\n\n") + "\n\nUse these sources if relevant to the
     }
     const convId = body.conversationId ?? null;
     let finalMessages = messages;
+    const artifactInstructions = getArtifactInstructions();
+    finalMessages = [{ role: "system", content: artifactInstructions }, ...finalMessages];
     if (convId) {
       const summaries = await fetchConversationSummaries(env2, convId);
       const systemCtx = buildSystemContext(summaries);
       if (systemCtx) {
-        finalMessages = [{ role: "system", content: systemCtx }, ...messages];
+        finalMessages = [{ role: "system", content: systemCtx }, ...finalMessages];
       }
       const queryText = getLastUserContent(messages);
       if (queryText) {
@@ -32398,6 +32481,53 @@ async function handleSearch(c) {
 }
 __name(handleSearch, "handleSearch");
 
+// src/crawl.ts
+var FIRECRAWL_URL = "https://api.firecrawl.dev/v1/scrape";
+async function handleCrawl(c) {
+  try {
+    const env2 = c.env;
+    const userId = c.get("userId");
+    if (!env2.FIRECRAWL_API_KEY) {
+      return c.json({ error: "missing_firecrawl_api_key" }, 501);
+    }
+    const body = await c.req.json().catch(() => null);
+    if (!body?.url || typeof body.url !== "string") {
+      return c.json({ error: "missing_url" }, 400);
+    }
+    const fcRes = await fetch(FIRECRAWL_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env2.FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        url: body.url,
+        formats: ["markdown"]
+      })
+    });
+    if (!fcRes.ok) {
+      const errText = await fcRes.text().catch(() => "");
+      return c.json({ error: "firecrawl_failed", status: fcRes.status, detail: errText }, 502);
+    }
+    const fcData = await fcRes.json();
+    if (!fcData.success || !fcData.data?.markdown) {
+      return c.json({ error: "firecrawl_no_content" }, 502);
+    }
+    const markdown = fcData.data.markdown;
+    const title = fcData.data.title ?? new URL(body.url).hostname;
+    return c.json({
+      ok: true,
+      title,
+      url: body.url,
+      content: markdown,
+      contentLength: markdown.length
+    });
+  } catch (err) {
+    return c.json({ error: "crawl_error", detail: String(err) }, 500);
+  }
+}
+__name(handleCrawl, "handleCrawl");
+
 // src/payments.ts
 function json2(payload, status = 200) {
   return new Response(JSON.stringify(payload, null, 2), {
@@ -32645,6 +32775,7 @@ app.post("/upload/analyze", authMiddleware, handleUploadAnalyze);
 app.post("/embed", authMiddleware, handleEmbed);
 app.post("/memory/extract", authMiddleware, handleMemoryExtract);
 app.post("/search", authMiddleware, handleSearch);
+app.post("/crawl", authMiddleware, handleCrawl);
 var src_default = app;
 
 // node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
@@ -32688,7 +32819,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env2, _ctx, middlewareCtx
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-nk21TW/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-kLwvq2/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -32720,7 +32851,7 @@ function __facade_invoke__(request, env2, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-nk21TW/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-kLwvq2/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;

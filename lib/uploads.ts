@@ -1,12 +1,61 @@
+import { Platform } from "react-native";
 import { supabase, supabaseUrl } from "@/lib/supabase";
 import type { Attachment } from "@/types";
 
 const IMAGE_BUCKET = "chat-images";
 const FILE_BUCKET = "chat-files";
+const MAX_IMAGE_DIMENSION = 512;
+const IMAGE_QUALITY = 0.7;
 
 function generateStoragePath(userId: string, filename: string): string {
   const ts = Date.now();
   return `${userId}/${ts}-${filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+}
+
+async function resizeImageWeb(uri: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= MAX_IMAGE_DIMENSION && height <= MAX_IMAGE_DIMENSION) {
+        resolve(uri);
+        return;
+      }
+      const scale = Math.min(MAX_IMAGE_DIMENSION / width, MAX_IMAGE_DIMENSION / height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas context failed")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error("Canvas toBlob failed")); return; }
+        resolve(URL.createObjectURL(blob));
+      }, "image/jpeg", IMAGE_QUALITY);
+    };
+    img.onerror = () => resolve(uri);
+    img.src = uri;
+  });
+}
+
+async function resizeIfNeeded(uri: string): Promise<string> {
+  if (Platform.OS === "web") {
+    try { return await resizeImageWeb(uri); } catch { return uri; }
+  }
+  try {
+    const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator");
+    const result = await manipulateAsync(
+      uri,
+      [{ resize: { width: MAX_IMAGE_DIMENSION } }],
+      { compress: IMAGE_QUALITY, format: SaveFormat.JPEG },
+    );
+    return result.uri;
+  } catch {
+    return uri;
+  }
 }
 
 export async function pickImageFromCamera(): Promise<Attachment | null> {
@@ -101,7 +150,8 @@ export async function uploadToStorage(
   const storagePath = generateStoragePath(userId, attachment.name);
 
   try {
-    const response = await fetch(attachment.uri);
+    const uriToUpload = attachment.type === "image" ? await resizeIfNeeded(attachment.uri) : attachment.uri;
+    const response = await fetch(uriToUpload);
     if (!response.ok) {
       console.warn("Failed to fetch local file:", response.status);
       return null;

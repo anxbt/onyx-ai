@@ -562,7 +562,7 @@ export const DEFAULT_MODEL_ID = FREE_MODEL_ID;
 | Task | Model | Why |
 |------|-------|-----|
 | Summarization (Wave 1) | `nvidia/nemotron-3-nano-30b-a3b:free` | Free, general-purpose, not coding-biased |
-| Embeddings (Wave 4) | `sentence-transformers/all-MiniLM-L6-v2` | Free via OpenRouter, 384-dim, fast |
+| Embeddings (Wave 4) | `sentence-transformers/all-MiniLM-L6-v2` | Free via OpenRouter, Tell me exactly why we need the Wave 6. Please give me a use case where we would use it and where its presence would really make sense.-dim, fast |
 | Image captioning (Wave 3) | `google/gemini-2.5-flash-lite` | Cheap vision, excellent at description |
 | Memory extraction (Wave 4) | `google/gemini-2.5-flash-lite` | Cheap, good at structured JSON output |
 

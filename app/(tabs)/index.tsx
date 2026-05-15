@@ -26,6 +26,7 @@ export default function ChatScreen() {
   const setActiveConversationId = useAppStore((state) => state.setActiveConversationId);
   const { session, profile, isLoading: authLoading } = useAuth();
   const creditBalance = profile?.creditBalance ?? 0;
+  const isSuperuser = profile?.isSuperuser ?? false;
   const [draft, setDraft] = useState("");
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -87,10 +88,9 @@ export default function ChatScreen() {
   };
 
   useEffect(() => {
-    if (!authLoading && creditBalance <= 0 && !activeModel.isFree) {
-      setActiveModelId(FREE_MODEL_ID);
-    }
-  }, [activeModel.isFree, authLoading, creditBalance, setActiveModelId]);
+    // No longer force-switch to free model — user can browse all models.
+    // If credit is 0, InputBar shows "Top up" and worker returns 402.
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -144,6 +144,7 @@ export default function ChatScreen() {
           creditBalance={creditBalance}
           draft={draft}
           isFreeModel={activeModel.isFree}
+          isSuperuser={isSuperuser}
           onChangeDraft={setDraft}
           onAttach={handleAttach}
           onCamera={handleCamera}

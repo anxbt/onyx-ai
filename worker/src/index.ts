@@ -6,6 +6,7 @@ import { handleChat, handleSummarize } from "./chat";
 import { handleEmbed } from "./embed";
 import { handleMemoryExtract } from "./memory";
 import { handleSearch } from "./search";
+import { handleCrawl } from "./crawl";
 import { handleCreatePaymentOrder, handlePaymentWebhook, handleVerifyPayment } from "./payments";
 import { handleUploadAnalyze } from "./upload";
 
@@ -35,5 +36,6 @@ app.post("/upload/analyze", authMiddleware, handleUploadAnalyze);
 app.post("/embed", authMiddleware, handleEmbed);
 app.post("/memory/extract", authMiddleware, handleMemoryExtract);
 app.post("/search", authMiddleware, handleSearch);
+app.post("/crawl", authMiddleware, handleCrawl);
 
 export default app;

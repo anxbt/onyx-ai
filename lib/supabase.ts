@@ -227,7 +227,7 @@ export async function fetchModelCatalog(): Promise<ModelCatalogEntry[]> {
     id: row.id,
     displayName: row.display_name,
     provider: row.provider,
-    supportsVision: row.supports_vision ?? false,
+    modality: row.supports_vision ? "text+image" : "text",
     supportsReasoning: row.supports_reasoning ?? false,
     isFree: row.is_free ?? false,
     inputCostPerMToken: Number(row.provider_input_cost_per_m_token ?? 0),

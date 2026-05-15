@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
-import { DEFAULT_MODEL_ID } from "@/constants/models";
+import { DEFAULT_MODEL_ID, MODELS } from "@/constants/models";
 
 const STORE_KEY = "onyxai-store";
 
@@ -39,8 +39,13 @@ AsyncStorage.getItem(STORE_KEY)
     }
 
     const persisted = JSON.parse(value) as Partial<Pick<AppStore, "activeModelId">>;
-    if (typeof persisted.activeModelId === "string" && persisted.activeModelId.length > 0) {
-      useAppStore.setState({ activeModelId: persisted.activeModelId });
+    const storedId = persisted.activeModelId;
+    if (typeof storedId === "string" && storedId.length > 0) {
+      // Validate against current model list — ignore stale IDs from old configs
+      const valid = MODELS.some((m) => m.id === storedId);
+      if (valid) {
+        useAppStore.setState({ activeModelId: storedId });
+      }
     }
   })
   .catch(() => {});

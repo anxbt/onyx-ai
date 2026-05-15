@@ -17,7 +17,7 @@ export function ModelSelector({ currentModelId, visible, onClose, onSelect }: Mo
     <BottomSheet onClose={onClose} visible={visible}>
       <Text style={{ color: Colors.textPrimary, fontSize: 20, fontWeight: "700" }}>Choose a model</Text>
       <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>
-        All 5 curated models from the spec are scaffolded here.
+        8 models with specialized roles — choose the right tool for your task.
       </Text>
       <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
         <View style={{ gap: 12 }}>

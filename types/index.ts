@@ -2,7 +2,7 @@ export interface ModelConfig {
   id: string;
   displayName: string;
   provider: string;
-  supportsVision: boolean;
+  modality: string;
   supportsReasoning: boolean;
   isFree: boolean;
   inputCostPerMToken: number;

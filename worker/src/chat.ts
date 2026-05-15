@@ -114,6 +114,53 @@ function buildSystemContext(
   return parts.join("\n\n");
 }
 
+function getArtifactInstructions(): string {
+  return `[Artifact formatting — use when the user asks for visual explanations]
+
+Generate styled HTML wrapped in code fences with language tag "html".
+
+For DOWNLOADABLE DOCUMENTS (PDFs, study guides, reports):
+Add data-type="pdf" and data-title="Your Title" to a root <div>. Example:
+
+\`\`\`html
+<div data-type="pdf" data-title="Railways Study Guide">
+  <h1>Indian Railways GK</h1>
+  <p>First locomotive ran in 1853 from Bombay to Thane.</p>
+  <h2>Railway Zones</h2>
+  <table>
+    <tr><td>Northern Railway</td><td>Delhi</td></tr>
+    <tr><td>Southern Railway</td><td>Chennai</td></tr>
+  </table>
+</div>
+\`\`\`
+
+For INLINE DIAGRAMS (flowcharts, roadmaps, comparison tables, charts):
+Add data-type="artifact" to a root <div>. Example:
+
+\`\`\`html
+<div data-type="artifact">
+  <div style="display:flex;gap:8px;">
+    <div style="background:#7C3AED;padding:8px 16px;border-radius:12px;color:white;">Step 1</div>
+    <span style="align-self:center;">→</span>
+    <div style="background:#7C3AED;padding:8px 16px;border-radius:12px;color:white;">Step 2</div>
+  </div>
+</div>
+\`\`\`
+
+Design rules:
+- Dark background #0A0A0A, text #ECECED, accent #7C3AED (solid colors, no gradients)
+- Left-aligned only, no centered text
+- Max 3 colors per element
+- Labels under 40 characters
+- For trees: nested <ul> with border-left and indentation
+- For bar charts: CSS bars with percentage widths
+- For flowcharts: flexbox rows with arrows
+- Use <table> for structured comparisons
+- Use <section> with margin-top for large gaps between sections
+
+When the user asks for a PDF or document, ONLY output the \`\`\`html block — no markdown summary before or after. The app will show a download card.`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  /chat                                                             */
 /* ------------------------------------------------------------------ */
@@ -207,11 +254,13 @@ export async function handleChat(c: Context<HonoEnv>) {
 
     const convId = body.conversationId ?? null;
     let finalMessages = messages;
+    const artifactInstructions = getArtifactInstructions();
+    finalMessages = [{ role: "system", content: artifactInstructions }, ...finalMessages];
     if (convId) {
       const summaries = await fetchConversationSummaries(env, convId);
       const systemCtx = buildSystemContext(summaries);
       if (systemCtx) {
-        finalMessages = [{ role: "system", content: systemCtx }, ...messages];
+        finalMessages = [{ role: "system", content: systemCtx }, ...finalMessages];
       }
 
       // Wave 4 / Layer 3: semantic retrieval of relevant old messages
