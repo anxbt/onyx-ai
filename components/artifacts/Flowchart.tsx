@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import Svg, { Line, Polygon, Rect, Text as SvgText } from "react-native-svg";
 
 import { Colors } from "@/constants/colors";
+import { Typography } from "@/constants/typography";
 
 interface FlowchartNode {
   id: string;
@@ -39,7 +40,7 @@ function renderShape(shape: string | undefined) {
       <Polygon
         points={`${cx},${cy - h} ${cx + w},${cy} ${cx},${cy + h} ${cx - w},${cy}`}
         fill={Colors.surfaceElevated}
-        stroke={Colors.accent}
+        stroke={Colors.primary}
         strokeWidth={1.5}
       />
     );
@@ -52,7 +53,7 @@ function renderShape(shape: string | undefined) {
       height={NODE_H}
       rx={shape === "rounded" ? NODE_H / 2 : 4}
       fill={Colors.surfaceElevated}
-      stroke={Colors.accent}
+      stroke={Colors.primary}
       strokeWidth={1}
     />
   );
@@ -88,13 +89,13 @@ export function Flowchart({ data }: FlowchartProps) {
     <View
       style={{
         backgroundColor: Colors.surfaceElevated,
-        borderColor: Colors.border,
+        borderColor: Colors.borderHairline,
         borderRadius: 12,
         borderWidth: 1,
         padding: 12,
       }}
     >
-      <Text style={{ color: Colors.textTertiary, fontSize: 10, fontWeight: "600", marginBottom: 8 }}>
+      <Text style={[Typography.uiLabel, { color: Colors.textTertiary, marginBottom: 8 }]}>
         FLOWCHART
       </Text>
       <Svg width={svgW} height={totalH}>

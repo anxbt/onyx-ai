@@ -3,13 +3,13 @@ import { View } from "react-native";
 import { WebView } from "react-native-webview";
 
 import { Colors } from "@/constants/colors";
-import { DESIGN_TOKENS, wrapHtml } from "./HtmlArtifact";
+import { wrapHtml } from "./HtmlArtifact.shared";
 
 interface HtmlArtifactProps {
   html: string;
 }
 
-export { DESIGN_TOKENS } from "./HtmlArtifact";
+export { DESIGN_TOKENS } from "./HtmlArtifact.shared";
 
 export function HtmlArtifact({ html }: HtmlArtifactProps) {
   const [webHeight, setWebHeight] = useState(120);

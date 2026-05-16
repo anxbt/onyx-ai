@@ -14,6 +14,8 @@ interface AppStore {
   setActiveConversationId: (id: string | null) => void;
   memoryIndicatorVisible: boolean;
   setMemoryIndicatorVisible: (visible: boolean) => void;
+  activeArtifactTab: string;
+  setActiveArtifactTab: (tab: string) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -29,6 +31,8 @@ export const useAppStore = create<AppStore>()(
     setActiveConversationId: (id) => set({ activeConversationId: id }),
     memoryIndicatorVisible: false,
     setMemoryIndicatorVisible: (visible) => set({ memoryIndicatorVisible: visible }),
+    activeArtifactTab: "text",
+    setActiveArtifactTab: (tab) => set({ activeArtifactTab: tab }),
   }),
 );
 

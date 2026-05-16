@@ -1,0 +1,29 @@
+{
+  "cli": {
+    "version": ">= 18.13.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tvvgferannivwdltjtjs.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_bamh9A-hBrcBbD6XNIIRVQ_YjJ2ijny",
+        "EXPO_PUBLIC_WORKER_URL": "https://onyxai-worker.anxbrt.workers.dev"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

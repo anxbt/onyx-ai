@@ -9,6 +9,7 @@ import Markdown, { type RenderRules } from "react-native-markdown-display";
 import * as WebBrowser from "expo-web-browser";
 
 import { Colors } from "@/constants/colors";
+import { Typography } from "@/constants/typography";
 import { CodeBlock } from "@/components/chat/CodeBlock";
 import {
   extractMath,
@@ -40,7 +41,7 @@ function openLink(url: string) {
   if (!url) return;
   WebBrowser.openBrowserAsync(url, {
     toolbarColor: Colors.background,
-    controlsColor: Colors.accent,
+    controlsColor: Colors.primary,
   }).catch(() => {
     // Fallback silently
   });
@@ -51,69 +52,72 @@ function openLink(url: string) {
 /* ------------------------------------------------------------------ */
 const markdownStyles = StyleSheet.create({
   body: {
-    color: Colors.textPrimary,
-    fontSize: 15,
+    ...Typography.bodyProse,
     lineHeight: 22,
+    color: Colors.textPrimary,
   },
   paragraph: {
     marginTop: 0,
-    marginBottom: 10,
-    color: Colors.textPrimary,
-    fontSize: 15,
+    marginBottom: 0,
+    ...Typography.bodyProse,
     lineHeight: 22,
+    color: Colors.textPrimary,
   },
   text: {
-    color: Colors.textPrimary,
-    fontSize: 15,
+    ...Typography.bodyProse,
     lineHeight: 22,
+    color: Colors.textPrimary,
   },
   heading1: {
-    color: Colors.textPrimary,
-    fontSize: 24,
-    fontWeight: "800",
+    ...Typography.displayLg,
     marginTop: 18,
     marginBottom: 10,
-    lineHeight: 30,
+    color: Colors.textPrimary,
   },
   heading2: {
-    color: Colors.textPrimary,
+    fontFamily: Typography.displayLg.fontFamily,
     fontSize: 20,
     fontWeight: "700",
     marginTop: 16,
     marginBottom: 8,
     lineHeight: 26,
+    color: Colors.textPrimary,
   },
   heading3: {
-    color: Colors.textPrimary,
+    fontFamily: Typography.uiMedium.fontFamily,
     fontSize: 17,
     fontWeight: "700",
     marginTop: 14,
     marginBottom: 6,
     lineHeight: 24,
+    color: Colors.textPrimary,
   },
   heading4: {
-    color: Colors.textSecondary,
+    fontFamily: Typography.uiMedium.fontFamily,
     fontSize: 15,
     fontWeight: "700",
     marginTop: 12,
     marginBottom: 4,
     lineHeight: 22,
+    color: Colors.textSecondary,
   },
   heading5: {
-    color: Colors.textSecondary,
+    fontFamily: Typography.uiMedium.fontFamily,
     fontSize: 14,
     fontWeight: "700",
     marginTop: 10,
     marginBottom: 4,
     lineHeight: 20,
+    color: Colors.textSecondary,
   },
   heading6: {
-    color: Colors.textTertiary,
+    fontFamily: Typography.uiLabel.fontFamily,
     fontSize: 13,
     fontWeight: "700",
     marginTop: 8,
     marginBottom: 4,
     lineHeight: 18,
+    color: Colors.textTertiary,
   },
   bullet_list: {
     marginVertical: 6,
@@ -126,16 +130,14 @@ const markdownStyles = StyleSheet.create({
     marginVertical: 3,
   },
   bullet_list_icon: {
-    color: Colors.accent,
-    fontSize: 15,
-    lineHeight: 22,
+    color: Colors.primary,
+    ...Typography.bodyProse,
     marginRight: 8,
     marginLeft: 4,
   },
   ordered_list_icon: {
-    color: Colors.accent,
-    fontSize: 15,
-    lineHeight: 22,
+    color: Colors.primary,
+    ...Typography.bodyProse,
     marginRight: 8,
     marginLeft: 4,
     fontVariant: ["tabular-nums"],
@@ -143,21 +145,19 @@ const markdownStyles = StyleSheet.create({
   code_inline: {
     backgroundColor: Colors.inlineCodeBackground,
     color: Colors.codeText,
-    fontSize: 13,
-    lineHeight: 20,
+    ...Typography.codeBlock,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   code_block: {
-    display: "none", // we render via custom fence rule
+    display: "none",
   },
   fence: {
-    display: "none", // we render via custom fence rule
+    display: "none",
   },
   blockquote: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 2,
     borderLeftColor: Colors.blockquoteBorder,
     backgroundColor: Colors.blockquoteBackground,
     paddingHorizontal: 12,
@@ -166,11 +166,12 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 4,
   },
   hr: {
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.borderHairline,
     height: 1,
     marginVertical: 14,
   },
   strong: {
+    fontFamily: Typography.bodyProseBold.fontFamily,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
@@ -200,9 +201,8 @@ const markdownStyles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderColor: Colors.tableBorder,
+    ...Typography.uiLabel,
     color: Colors.textPrimary,
-    fontWeight: "700",
-    fontSize: 13,
   },
   tr: {
     flexDirection: "row",
@@ -211,15 +211,13 @@ const markdownStyles = StyleSheet.create({
   },
   td: {
     padding: 10,
+    ...Typography.uiLabel,
     color: Colors.textSecondary,
-    fontSize: 13,
     flex: 1,
   },
-  // Math
   math: {
     color: Colors.mathColor,
-    fontSize: 15,
-    lineHeight: 22,
+    ...Typography.bodyProse,
     fontStyle: "italic",
   },
   mathBlock: {

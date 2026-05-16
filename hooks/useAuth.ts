@@ -9,6 +9,16 @@ import type { SessionLike, UserProfile } from "@/types";
 
 WebBrowser.maybeCompleteAuthSession();
 
+function getWebRedirectUrl() {
+  const appUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.trim();
+
+  if (appUrl) {
+    return new URL("/auth/callback", appUrl).toString();
+  }
+
+  return Linking.createURL("/auth/callback");
+}
+
 export function useAuth() {
   const [session, setSession] = useState<SessionLike | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -102,7 +112,7 @@ export function useAuth() {
     }
 
     if (typeof window !== "undefined" && Platform.OS === "web") {
-      const redirectTo = Linking.createURL("/auth/callback");
+      const redirectTo = getWebRedirectUrl();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

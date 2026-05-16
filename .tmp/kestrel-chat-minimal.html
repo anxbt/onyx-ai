@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kestrel AI - Technical Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            background-color: #0f0f0f;
+            color: #e2e2e2;
+            -webkit-font-smoothing: antialiased;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #333333;
+            border-radius: 10px;
+        }
+        .material-symbols-outlined {
+            font-size: 20px;
+        }
+        /* Fix for potential overflow in code blocks */
+        pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        @media (min-width: 768px) {
+            pre {
+                white-space: pre;
+                word-break: normal;
+            }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#656464",
+                        "on-primary": "#000000",
+                        "tertiary-fixed-dim": "#c8c6c6",
+                        "outline-variant": "#2a2a2a",
+                        "surface-container": "#1a1a1a",
+                        "error-container": "#93000a",
+                        "surface-container-low": "#141414",
+                        "surface-variant": "#262626",
+                        "surface-container-high": "#222222",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "error": "#ffb4ab",
+                        "surface": "#0f0f0f",
+                        "surface-tint": "#ffffff",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-primary-fixed-variant": "#454747",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-error": "#690005",
+                        "on-tertiary": "#303030",
+                        "on-surface-variant": "#9a9a9a",
+                        "tertiary": "#ffffff",
+                        "on-secondary-container": "#b7b5b4",
+                        "primary": "#ffffff",
+                        "tertiary-fixed": "#e4e2e1",
+                        "secondary-container": "#333333",
+                        "outline": "#404040",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface-bright": "#2c2c2c",
+                        "inverse-surface": "#e2e2e2",
+                        "on-secondary": "#303030",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-surface": "#f0f0f0",
+                        "surface-container-lowest": "#0a0a0a",
+                        "surface-dim": "#0f0f0f",
+                        "on-primary-fixed": "#1a1c1c",
+                        "tertiary-container": "#e4e2e1",
+                        "primary-container": "#ffffff",
+                        "secondary": "#a0a0a0",
+                        "on-background": "#f0f0f0",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#5d5f5f",
+                        "background": "#0f0f0f",
+                        "surface-container-highest": "#2d2d2d",
+                        "secondary-fixed": "#e5e2e1",
+                        "on-secondary-fixed-variant": "#474746",
+                        "inverse-on-surface": "#303030",
+                        "primary-fixed": "#e2e2e2",
+                        "on-primary-container": "#000000"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "xs": "8px",
+                        "margin-desktop": "40px",
+                        "base": "4px",
+                        "xl": "32px",
+                        "sm": "12px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["JetBrains Mono"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["13px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="flex h-screen overflow-hidden bg-background">
+<!-- Desktop Sidebar -->
+<aside class="hidden md:flex flex-col w-72 bg-surface-container-lowest border-r border-outline-variant p-md">
+<div class="flex items-center gap-xs mb-xl">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-headline-sm text-primary font-semibold tracking-tight">Kestrel AI</span>
+</div>
+<div class="flex items-center gap-sm mb-lg p-sm bg-surface-container-low rounded-lg border border-outline-variant">
+<img alt="User" class="w-8 h-8 rounded-full bg-surface-variant object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfGjo5afes63lcvbeAbGoUCESM-s0qLP7-MO2XX1qLlB1B-hJ6QYGddshP0jHOVc3BDmvwCl9ZMGbzdYYes0RkByVhG-oPUTU7pkC4Nq_Svkic3Mzg5YB9iwMh58_FsCYr0DO33uh8geZnqEaN8LUjA7uYQzqxOFFynEScMDtmMmmtHsCSM5nCKmRpswiMwKenVZgWK-VqC4Thh52A-JEasxJUJJpe4sa-c66VmUf4cwSeW1Tk_NEZFEdsMFmtTXVS_z5YAoNqJCY"/>
+<div class="flex-1 overflow-hidden">
+<p class="font-label-md text-on-surface truncate text-xs">Anubrat Sahoo</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant !text-[18px]">settings</span>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar space-y-xs pr-xs">
+<p class="font-label-md text-[10px] text-on-surface-variant/60 px-sm mb-2 uppercase tracking-widest">Recent Chats</p>
+<button class="w-full text-left p-sm bg-surface-container-high text-on-surface font-medium rounded-lg transition-all flex items-center gap-sm border border-outline-variant/30">
+<span class="material-symbols-outlined !text-[18px]">chat_bubble</span>
+<span class="font-body-md truncate">Vedic Astrology Guide</span>
+</button>
+<button class="w-full text-left p-sm text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all flex items-center gap-sm">
+<span class="material-symbols-outlined !text-[18px]">chat_bubble</span>
+<span class="font-body-md truncate">Wide Toe Box Benefits</span>
+</button>
+<button class="w-full text-left p-sm text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all flex items-center gap-sm">
+<span class="material-symbols-outlined !text-[18px]">chat_bubble</span>
+<span class="font-body-md truncate">MacBook Longevity</span>
+</button>
+</div>
+<div class="mt-auto pt-md">
+<button class="w-full py-2.5 px-md bg-white text-black font-semibold rounded-lg flex items-center justify-center gap-xs active:scale-95 transition-transform">
+<span class="material-symbols-outlined !text-[18px]">add</span>
+<span class="font-label-md">New Chat</span>
+</button>
+</div>
+</aside>
+<main class="flex-1 flex flex-col relative w-full overflow-hidden">
+<!-- Top Navigation -->
+<header class="flex justify-between items-center w-full px-md py-3 bg-background border-b border-outline-variant sticky top-0 z-20">
+<div class="flex items-center gap-md">
+<button class="md:hidden p-1.5 hover:bg-surface-container-highest transition-colors rounded-lg">
+<span class="material-symbols-outlined text-on-background">menu</span>
+</button>
+<div class="flex items-center gap-6 ml-1 md:ml-0">
+<button class="font-label-md text-sm text-primary font-bold border-b-2 border-primary pb-3 -mb-[13px] relative z-10">Ask</button>
+<button class="font-label-md text-sm text-on-surface-variant hover:text-on-surface transition-colors pb-3 -mb-[13px]">Imagine</button>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<span class="hidden sm:block font-label-md text-[10px] text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-full border border-outline-variant uppercase tracking-wider">Kestrel v2.4</span>
+<button class="p-1.5 hover:bg-surface-container-highest transition-colors rounded-lg">
+<span class="material-symbols-outlined text-on-background">edit_note</span>
+</button>
+</div>
+</header>
+<!-- Main Chat Area -->
+<section class="flex-1 overflow-y-auto custom-scrollbar w-full">
+<div class="max-w-3xl mx-auto px-gutter py-xl space-y-xl w-full">
+<!-- User Message -->
+<div class="flex flex-col items-end gap-sm group w-full">
+<div class="bg-surface-container-high border border-outline-variant px-5 py-3 rounded-2xl max-w-[90%] md:max-w-[85%]">
+<p class="font-body-lg text-on-surface">Write a print statement in Python</p>
+</div>
+<p class="font-label-md text-[10px] text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity px-1">9:00 AM</p>
+</div>
+<!-- AI Response -->
+<div class="space-y-lg w-full">
+<div class="flex items-center gap-3">
+<div class="w-7 h-7 bg-white rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-black !text-[16px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<p class="font-label-md text-xs text-on-surface font-bold uppercase tracking-[0.2em]">Kestrel AI</p>
+</div>
+<div class="space-y-md w-full">
+<p class="font-body-lg text-on-surface leading-relaxed">Here's a simple print statement in Python:</p>
+<!-- Code Block 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden w-full">
+<div class="bg-surface-container px-md py-2 flex justify-between items-center border-b border-outline-variant">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-on-surface-variant !text-[16px]">code</span>
+<span class="font-label-md text-xs text-on-surface-variant">python</span>
+</div>
+<button class="p-1 hover:text-primary transition-all flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined !text-[14px]">content_copy</span>
+<span class="font-label-md text-xs">Copy</span>
+</button>
+</div>
+<div class="overflow-x-auto custom-scrollbar w-full">
+<pre class="p-lg font-code-sm text-code-sm bg-surface-container-lowest"><code class="text-[#e2e2e2]"><span class="text-on-surface-variant/60"># The most basic way to output text</span>
+<span class="text-primary font-semibold">print</span>(<span class="text-[#a5d6ff]">"Hello, World!"</span>)</code></pre>
+</div>
+</div>
+<p class="font-body-lg text-on-surface leading-relaxed">More useful examples using variables and f-strings:</p>
+<!-- Code Block 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden w-full">
+<div class="bg-surface-container px-md py-2 flex justify-between items-center border-b border-outline-variant">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-on-surface-variant !text-[16px]">code</span>
+<span class="font-label-md text-xs text-on-surface-variant">python</span>
+</div>
+<button class="p-1 hover:text-primary transition-all flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined !text-[14px]">content_copy</span>
+<span class="font-label-md text-xs">Copy</span>
+</button>
+</div>
+<div class="overflow-x-auto custom-scrollbar w-full">
+<pre class="p-lg font-code-sm text-code-sm bg-surface-container-lowest"><code class="text-[#e2e2e2]"><span class="text-on-surface-variant/60"># Print with variables</span>
+name = <span class="text-[#a5d6ff]">"Anubrat"</span>
+age = <span class="text-[#79c0ff]">22</span>
+<span class="text-primary font-semibold">print</span>(f<span class="text-[#a5d6ff]">"My name is {name} and I am {age} years old"</span>)
+
+<span class="text-on-surface-variant/60"># Print with custom separator</span>
+<span class="text-primary font-semibold">print</span>(<span class="text-[#a5d6ff]">"Hello"</span>, <span class="text-[#a5d6ff]">"World"</span>, sep=<span class="text-[#a5d6ff]">" - "</span>)
+
+<span class="text-on-surface-variant/60"># Print with emoji</span>
+<span class="text-primary font-semibold">print</span>(<span class="text-[#a5d6ff]">"Namaste 🙏"</span>)</code></pre>
+</div>
+</div>
+</div>
+<!-- Suggestion Chips -->
+<div class="flex flex-wrap gap-2 pt-md">
+<button class="bg-surface-container border border-outline-variant hover:border-primary/40 px-3.5 py-1.5 rounded-full font-label-md text-[11px] text-on-surface-variant hover:text-primary transition-all">Explain f-strings</button>
+<button class="bg-surface-container border border-outline-variant hover:border-primary/40 px-3.5 py-1.5 rounded-full font-label-md text-[11px] text-on-surface-variant hover:text-primary transition-all">How to print to a file?</button>
+<button class="bg-surface-container border border-outline-variant hover:border-primary/40 px-3.5 py-1.5 rounded-full font-label-md text-[11px] text-on-surface-variant hover:text-primary transition-all">Color output in terminal</button>
+</div>
+</div>
+<div class="h-48"></div>
+</div>
+</section>
+<!-- Input Area Container -->
+<div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-xl pb-md">
+<div class="max-w-3xl mx-auto px-gutter">
+<!-- Action Bar -->
+<div class="flex gap-2 mb-3 overflow-x-auto no-scrollbar py-1">
+<button class="flex items-center gap-1.5 bg-surface-container border border-outline-variant px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-colors whitespace-nowrap">
+<span class="material-symbols-outlined !text-[16px] text-primary">bolt</span>
+<span class="font-label-md text-[11px] text-on-surface">Try SuperGrok</span>
+</button>
+<button class="flex items-center gap-1.5 bg-surface-container border border-outline-variant px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-colors whitespace-nowrap">
+<span class="material-symbols-outlined !text-[16px]">video_library</span>
+<span class="font-label-md text-[11px] text-on-surface">Create Videos</span>
+</button>
+</div>
+<!-- Textarea Group -->
+<div class="relative bg-surface-container border border-outline-variant focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 rounded-xl transition-all shadow-lg">
+<textarea class="w-full bg-transparent border-none focus:ring-0 px-md py-4 font-body-lg text-on-surface placeholder:text-on-surface-variant/40 resize-none max-h-60" placeholder="Ask anything" rows="1"></textarea>
+<div class="flex items-center justify-between px-md pb-3">
+<div class="flex items-center gap-1">
+<button class="p-1.5 text-on-surface-variant hover:text-primary transition-colors rounded-lg hover:bg-surface-container-highest">
+<span class="material-symbols-outlined !text-[20px]">attach_file</span>
+</button>
+<div class="h-4 w-[1px] bg-outline-variant mx-1"></div>
+<button class="flex items-center gap-1 px-2 py-1 bg-surface-container-highest rounded-md text-on-surface border border-outline-variant/30 hover:border-primary/40 transition-all">
+<span class="material-symbols-outlined !text-[14px]">bolt</span>
+<span class="font-label-md text-[10px]">Fast</span>
+<span class="material-symbols-outlined !text-[12px]">expand_more</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-on-surface-variant hover:text-primary transition-colors rounded-lg hover:bg-surface-container-highest">
+<span class="material-symbols-outlined !text-[20px]">mic</span>
+</button>
+<button class="bg-white text-black px-4 py-1.5 rounded-lg font-label-md text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform">
+<span class="material-symbols-outlined !text-[16px]" style="font-variation-settings: 'FILL' 1;">send</span>
+<span>Send</span>
+</button>
+</div>
+</div>
+</div>
+<p class="text-center font-label-md text-[9px] text-on-surface-variant/30 mt-3 uppercase tracking-[0.2em]">Kestrel AI can make mistakes. Verify technical information.</p>
+</div>
+</div>
+</main>
+<!-- Navigation Bar Removed per request -->
+</body></html>

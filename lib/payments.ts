@@ -45,9 +45,14 @@ export async function startRazorpayTopUp({
   email?: string;
   pack: TopUpPack;
 }) {
+  console.log("[payments] Loading Razorpay checkout...");
   await loadRazorpayCheckout();
+  console.log("[payments] Razorpay checkout loaded");
 
-  const createResponse = await fetch(`${workerBaseUrl()}/payments/create-order`, {
+  const url = `${workerBaseUrl()}/payments/create-order`;
+  console.log("[payments] POST", url, { packId: pack.id });
+
+  const createResponse = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -57,10 +62,13 @@ export async function startRazorpayTopUp({
   });
 
   if (!createResponse.ok) {
-    throw new Error(await createResponse.text());
+    const errText = await createResponse.text();
+    console.error("[payments] create-order failed:", createResponse.status, errText);
+    throw new Error(errText);
   }
 
   const order = await createResponse.json();
+  console.log("[payments] Order created:", order);
 
   return await new Promise<RazorpaySuccess>((resolve, reject) => {
     const checkout = new window.Razorpay!({
@@ -73,6 +81,7 @@ export async function startRazorpayTopUp({
       prefill: { email },
       theme: { color: "#7C3AED" },
       handler: async (response: RazorpaySuccess) => {
+        console.log("[payments] Payment completed, verifying...");
         const verifyResponse = await fetch(`${workerBaseUrl()}/payments/verify`, {
           method: "POST",
           headers: {
@@ -83,17 +92,24 @@ export async function startRazorpayTopUp({
         });
 
         if (!verifyResponse.ok) {
-          reject(new Error(await verifyResponse.text()));
+          const errText = await verifyResponse.text();
+          console.error("[payments] verify failed:", verifyResponse.status, errText);
+          reject(new Error(errText));
           return;
         }
 
+        console.log("[payments] Payment verified successfully");
         resolve(response);
       },
       modal: {
-        ondismiss: () => reject(new Error("Payment cancelled")),
+        ondismiss: () => {
+          console.log("[payments] Checkout dismissed");
+          reject(new Error("Payment cancelled"));
+        },
       },
     });
 
+    console.log("[payments] Opening Razorpay checkout...");
     checkout.open();
   });
 }

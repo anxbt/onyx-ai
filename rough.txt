@@ -1,24 +1,4 @@
-"Project 2
-Secure Message Integrity and
-Collision Analysis Using SHA-1
-2.1
-Problem Statement
-Ensuring data integrity is a fundamental requirement in secure communication systems.
-Cryptographic hash functions generate fixed-length digests that uniquely represent input
-data. The SHA-1 produces a 160-bit hash and was widely used in digital signatures and
-certificates.
-However, SHA-1 has been proven vulnerable to collision attacks, making it unsuitable
-for modern security-critical applications. Studying SHA-1 provides valuable insight into
-how hash functions work and how vulnerabilities emerge.
-This project focuses not only on implementing SHA-1 but also on experimentally
-demonstrating its weaknesses through collision analysis and integrity testing
-2.2
-Objectives
-To develop a system to generate SHA-1 hashes for input messages.
-To implement message verification using hash comparison
-To show how minor input changes drastically alter the hash output.
-To demonstrate or simulate hash collisions to highlight weaknesses.
-To analyze speed and efficiency for large datasets.
-To compare SHA-1 with SHA-256 to highlight improvements in modern hashing."
+npx eas-cli@latest build --platform android --profile preview --clear-cache
 
-Give me the output of the project in Python and also generate the PDF that I need to submit as a project.
+
+onyxai://auth/callback

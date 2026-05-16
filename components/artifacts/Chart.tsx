@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import Svg, { Rect, Text as SvgText } from "react-native-svg";
 
 import { Colors } from "@/constants/colors";
+import { Typography } from "@/constants/typography";
 
 interface ChartData {
   type: "bar";
@@ -50,14 +51,14 @@ export function Chart({ data }: ChartProps) {
     <View
       style={{
         backgroundColor: Colors.surfaceElevated,
-        borderColor: Colors.border,
+        borderColor: Colors.borderHairline,
         borderRadius: 12,
         borderWidth: 1,
         padding: 12,
       }}
     >
       {parsed.title ? (
-        <Text style={{ color: Colors.textPrimary, fontSize: 12, fontWeight: "600", marginBottom: 8 }}>
+        <Text style={[Typography.uiLabel, { color: Colors.textPrimary, marginBottom: 8 }]}>
           {parsed.title}
         </Text>
       ) : null}
@@ -75,7 +76,7 @@ export function Chart({ data }: ChartProps) {
                 width={BAR_W}
                 height={barH}
                 rx={3}
-                fill={Colors.accent}
+                fill={Colors.primary}
                 opacity={opacity}
               />
               <SvgText

@@ -4,6 +4,8 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { AttachmentPreview } from "@/components/chat/AttachmentPreview";
 import { Button } from "@/components/ui/Button";
 import { Colors } from "@/constants/colors";
+import { Spacing } from "@/constants/spacing";
+import { Typography } from "@/constants/typography";
 import { estimateTokens } from "@/lib/tokens";
 import type { Attachment } from "@/types";
 
@@ -47,19 +49,19 @@ export function InputBar({
   }
 
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: Spacing.sm }}>
       <AttachmentPreview attachments={attachments} />
       <View
         style={{
           backgroundColor: Colors.surface,
-          borderColor: Colors.border,
-          borderRadius: 18,
+          borderColor: Colors.borderHairline,
+          borderRadius: Spacing.radius.container,
           borderWidth: 1,
-          padding: 12,
-          gap: 10,
+          padding: Spacing.md,
+          gap: Spacing.sm,
         }}
       >
-        <Text style={{ color: Colors.textTertiary, fontSize: 11 }}>
+        <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
           est {estimateTokens(draft)} tok · pay-as-you-go
         </Text>
         <TextInput
@@ -67,15 +69,20 @@ export function InputBar({
           onChangeText={onChangeDraft}
           placeholder="Message OnyxAI…"
           placeholderTextColor={Colors.textTertiary}
-          style={{
-            color: Colors.textPrimary,
-            fontSize: 15,
-            maxHeight: 110,
-          }}
+          style={[
+            Typography.bodyProse,
+            {
+              color: Colors.textPrimary,
+              maxHeight: 110,
+              paddingVertical: 0,
+              textAlignVertical: "top",
+              includeFontPadding: false,
+            },
+          ]}
           value={draft}
         />
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View style={{ flexDirection: "row", gap: 14 }}>
+          <View style={{ flexDirection: "row", gap: Spacing.lg }}>
             <Pressable onPress={onCamera} hitSlop={8}>
               <Ionicons color={Colors.textSecondary} name="camera-outline" size={18} />
             </Pressable>
@@ -85,13 +92,12 @@ export function InputBar({
             {onToggleSearch ? (
               <Pressable onPress={onToggleSearch} hitSlop={8}>
                 <Text
-                  style={{
-                    color: searchMode === "off" ? Colors.textTertiary : Colors.accent,
-                    fontSize: 11,
-                    fontWeight: "600",
-                  }}
+                  style={[
+                    Typography.uiLabel,
+                    { color: searchMode === "off" ? Colors.textTertiary : Colors.primary },
+                  ]}
                 >
-                  {searchMode === "force" ? "🌐" : searchMode === "auto" ? "🌐" : "🌐"}
+                  🌐
                 </Text>
               </Pressable>
             ) : null}
@@ -100,13 +106,17 @@ export function InputBar({
             disabled={!streaming && !canSend}
             onPress={streaming ? onStop : onSend}
             style={{
-              backgroundColor: streaming || canSend ? Colors.accent : Colors.surfaceElevated,
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
+              backgroundColor: streaming || canSend ? Colors.primary : "transparent",
+              borderColor: streaming || canSend ? Colors.primary : Colors.borderHairline,
+              borderWidth: 1,
+              borderRadius: Spacing.radius.primaryAction,
+              paddingHorizontal: Spacing.md,
+              paddingVertical: Spacing.sm,
             }}
           >
-            <Text style={{ color: Colors.textPrimary, fontWeight: "700" }}>{streaming ? "Stop" : "Send"}</Text>
+            <Text style={[Typography.uiMedium, { color: streaming || canSend ? Colors.onPrimary : Colors.textSecondary }]}>
+              {streaming ? "Stop" : "Send"}
+            </Text>
           </Pressable>
         </View>
       </View>

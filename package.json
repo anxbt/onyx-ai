@@ -13,11 +13,15 @@
     "worker:dev": "npm run worker:env && cd worker && npx wrangler dev"
   },
   "dependencies": {
+    "@expo-google-fonts/ibm-plex-sans": "^0.4.1",
+    "@expo-google-fonts/inter-tight": "^0.4.2",
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/native": "^7.1.33",
     "@supabase/supabase-js": "^2.105.4",
+    "eas-cli": "^18.13.0",
     "expo": "~54.0.0",
     "expo-auth-session": "~7.0.11",
     "expo-clipboard": "~7.0.0",

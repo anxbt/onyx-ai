@@ -12,7 +12,7 @@ export const MODELS: ModelConfig[] = [
     inputCostPerMToken: 0,
     outputCostPerMToken: 0,
     contextWindow: 262000,
-    maxOutput: 262000,
+    maxOutput: 65536,
     description: "Free. Good for onboarding and quick tasks.",
   },
   {
@@ -25,7 +25,7 @@ export const MODELS: ModelConfig[] = [
     inputCostPerMToken: 0.98,
     outputCostPerMToken: 3.08,
     contextWindow: 202752,
-    maxOutput: 202752,
+    maxOutput: 65536,
     description: "Structured presentation. Best for formal documents, slide outlines, and JSON artifacts.",
   },
   {
@@ -64,7 +64,7 @@ export const MODELS: ModelConfig[] = [
     inputCostPerMToken: 0.15,
     outputCostPerMToken: 0.6,
     contextWindow: 262144,
-    maxOutput: 262144,
+    maxOutput: 65536,
     description: "Creative ideation with vision. Best for brainstorming, writing, and content generation.",
   },
   {
@@ -77,7 +77,7 @@ export const MODELS: ModelConfig[] = [
     inputCostPerMToken: 0.4,
     outputCostPerMToken: 1.9,
     contextWindow: 262144,
-    maxOutput: 262144,
+    maxOutput: 65536,
     description: "Long context analysis with vision. Best for large documents, images, and conversation recall.",
   },
   {

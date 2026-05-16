@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from "react-native";
 
 import { Colors } from "@/constants/colors";
+import { Typography } from "@/constants/typography";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -55,15 +56,17 @@ function RoadmapNodeView({
               {expanded ? "▼" : "▶"}
             </Text>
           ) : (
-            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: Colors.accent, opacity: 0.5 }} />
+            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: Colors.primary, opacity: 0.5 }} />
           )}
           <Text
-            style={{
-              color: Colors.textPrimary,
-              fontSize: 13,
-              fontWeight: hasChildren ? "600" : "400",
-              opacity: accentOpacity,
-            }}
+            style={[
+              Typography.uiLabel,
+              {
+                color: Colors.textPrimary,
+                fontWeight: hasChildren ? "600" : "400",
+                opacity: accentOpacity,
+              },
+            ]}
           >
             {node.label}
           </Text>
@@ -119,18 +122,18 @@ export function Roadmap({ data, onPromptSeed }: RoadmapProps) {
     <View
       style={{
         backgroundColor: Colors.surfaceElevated,
-        borderColor: Colors.border,
+        borderColor: Colors.borderHairline,
         borderRadius: 12,
         borderWidth: 1,
         padding: 12,
         gap: 2,
       }}
     >
-      <Text style={{ color: Colors.textTertiary, fontSize: 10, fontWeight: "600", marginBottom: 4 }}>
+      <Text style={[Typography.uiLabel, { color: Colors.textTertiary, marginBottom: 4 }]}>
         ROADMAP
       </Text>
       <RoadmapNodeView node={root} depth={0} onPromptSeed={onPromptSeed} />
-      <Text style={{ color: Colors.textTertiary, fontSize: 9, marginTop: 8 }}>
+      <Text style={[Typography.uiLabel, { color: Colors.textTertiary, marginTop: 8, fontSize: 9 }]}>
         Tap to expand · Long-press to ask about a topic
       </Text>
     </View>

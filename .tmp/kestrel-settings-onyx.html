@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settings | Kestrel AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#5d5f5f",
+                        "tertiary-container": "#e4e2e1",
+                        "surface-container-highest": "#353535",
+                        "on-primary": "#2f3131",
+                        "secondary": "#c8c6c5",
+                        "surface-bright": "#393939",
+                        "on-primary-fixed-variant": "#454747",
+                        "inverse-surface": "#e2e2e2",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "outline": "#404040",
+                        "secondary-container": "#474746",
+                        "on-primary-fixed": "#1a1c1c",
+                        "error": "#ffb4ab",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-background": "#e2e2e2",
+                        "on-tertiary-container": "#656464",
+                        "on-secondary-fixed-variant": "#474746",
+                        "primary": "#ffffff",
+                        "outline-variant": "#2a2a2a",
+                        "surface": "#0a0a0a",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "on-surface-variant": "#9a9a9a",
+                        "secondary-fixed": "#e5e2e1",
+                        "surface-tint": "#c6c6c7",
+                        "on-secondary-container": "#b7b5b4",
+                        "surface-container-low": "#141414",
+                        "tertiary": "#ffffff",
+                        "surface-container-high": "#222222",
+                        "error-container": "#93000a",
+                        "on-tertiary": "#303030",
+                        "primary-container": "#ffffff",
+                        "on-primary-container": "#000000",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-secondary": "#303030",
+                        "on-surface": "#f0f0f0",
+                        "tertiary-fixed": "#e4e2e1",
+                        "background": "#000000",
+                        "surface-variant": "#262626",
+                        "surface-dim": "#0a0a0a",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "surface-container-lowest": "#050505",
+                        "tertiary-fixed-dim": "#c8c6c6",
+                        "surface-container": "#1a1a1a",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "inverse-on-surface": "#303030"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "xs": "8px",
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "margin-desktop": "40px",
+                        "sm": "12px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "code-sm": ["JetBrains Mono"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "headline-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "code-sm": ["13px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #000000;
+            color: #f0f0f0;
+            font-family: 'Hanken Grotesk', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2a2a2a;
+            border-radius: 2px;
+        }
+        .toggle-checkbox:checked + .toggle-track {
+            background-color: #ffffff;
+        }
+        .toggle-checkbox:checked + .toggle-track .toggle-thumb {
+            transform: translateX(100%);
+            background-color: #000000;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen overflow-hidden bg-background">
+<!-- Desktop Sidebar (Onyx Mono Style) -->
+<aside class="hidden md:flex flex-col w-[280px] border-r border-outline-variant bg-surface-container-lowest py-6 z-50">
+<div class="px-6 mb-8 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary tracking-tight">Kestrel AI</h1>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all cursor-pointer rounded-lg font-body-md">
+<span class="material-symbols-outlined">add_comment</span>
+<span>New Chat</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all cursor-pointer rounded-lg font-body-md">
+<span class="material-symbols-outlined">history</span>
+<span>History</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all cursor-pointer rounded-lg font-body-md">
+<span class="material-symbols-outlined">terminal</span>
+<span>Prompts</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all cursor-pointer rounded-lg font-body-md">
+<span class="material-symbols-outlined">folder</span>
+<span>Library</span>
+</div>
+</nav>
+<div class="mt-auto px-4 space-y-4">
+<div class="flex items-center gap-3 p-3 bg-white text-black font-bold rounded-lg cursor-pointer">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md">Settings</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-4 border-t border-outline-variant">
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-xs">person</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-on-surface">Anubrat Sahoo</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Plus Member</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top Navigation (Mobile Grok Style) -->
+<header class="flex justify-between items-center w-full px-md py-3 bg-background border-b border-outline-variant sticky top-0 z-40">
+<div class="flex items-center gap-md">
+<button class="md:hidden p-1.5 hover:bg-surface-container transition-colors rounded-lg">
+<span class="material-symbols-outlined text-on-background">menu</span>
+</button>
+<div class="flex items-center gap-6 ml-1 md:ml-0">
+<button class="font-label-md text-sm text-on-surface-variant hover:text-on-surface transition-colors pb-3 -mb-[13px]">Ask</button>
+<button class="font-label-md text-sm text-on-surface-variant hover:text-on-surface transition-colors pb-3 -mb-[13px]">Imagine</button>
+<button class="font-label-md text-sm text-primary font-bold border-b-2 border-primary pb-3 -mb-[13px] relative z-10">Settings</button>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<span class="hidden sm:block font-label-md text-[10px] text-on-surface-variant bg-surface-container px-2.5 py-1 rounded border border-outline-variant uppercase tracking-wider">v2.4.2</span>
+<button class="p-1.5 hover:bg-surface-container transition-colors rounded-lg">
+<span class="material-symbols-outlined text-on-background">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 h-full overflow-y-auto custom-scrollbar bg-background">
+<div class="max-w-[700px] mx-auto px-margin-mobile md:px-margin-desktop py-12 space-y-12">
+<!-- Account / Subscription -->
+<section class="space-y-6">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<h3 class="font-label-md text-[11px] text-on-surface-variant uppercase tracking-[0.2em]">Account &amp; Subscription</h3>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 space-y-6">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<p class="font-headline-md text-primary">Pro Technical Tier</p>
+<p class="font-body-md text-on-surface-variant">Active subscription since Jan 2024</p>
+</div>
+<span class="px-2 py-0.5 border border-primary text-primary text-[10px] font-bold rounded uppercase tracking-wider">Premium</span>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between text-[11px] font-label-md uppercase tracking-wider">
+<span class="text-on-surface-variant">Monthly Compute Units</span>
+<span class="text-primary">7.2k / 10k units</span>
+</div>
+<div class="w-full h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 72%;"></div>
+</div>
+</div>
+<button class="w-full py-3 bg-white text-black font-bold rounded hover:opacity-90 active:scale-[0.99] transition-all text-sm uppercase tracking-widest">
+                        Pay-As-You-Go Credits
+                    </button>
+</div>
+</section>
+<!-- Preferences -->
+<section class="space-y-6">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<h3 class="font-label-md text-[11px] text-on-surface-variant uppercase tracking-[0.2em]">Global Preferences</h3>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden divide-y divide-outline-variant">
+<!-- Toggle Item -->
+<div class="flex items-center justify-between p-5 hover:bg-surface-container-low transition-colors">
+<div class="space-y-1">
+<p class="font-body-lg text-primary font-medium">Dev Mode</p>
+<p class="text-xs text-on-surface-variant font-body-md">Expose raw JSON response and token metrics</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only toggle-checkbox" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-highest border border-outline rounded-full transition-colors duration-200 toggle-track">
+<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-on-surface-variant rounded-full transition-transform duration-200 toggle-thumb"></div>
+</div>
+</label>
+</div>
+<!-- Toggle Item -->
+<div class="flex items-center justify-between p-5 hover:bg-surface-container-low transition-colors">
+<div class="space-y-1">
+<p class="font-body-lg text-primary font-medium">Auto-Context</p>
+<p class="text-xs text-on-surface-variant font-body-md">Inject workspace context into all prompts</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only toggle-checkbox" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-highest border border-outline rounded-full transition-colors duration-200 toggle-track">
+<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-on-surface-variant rounded-full transition-transform duration-200 toggle-thumb"></div>
+</div>
+</label>
+</div>
+<!-- Toggle Item -->
+<div class="flex items-center justify-between p-5 hover:bg-surface-container-low transition-colors">
+<div class="space-y-1">
+<p class="font-body-lg text-primary font-medium">Sync State</p>
+<p class="text-xs text-on-surface-variant font-body-md">Real-time backup of local thread history</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only toggle-checkbox" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-highest border border-outline rounded-full transition-colors duration-200 toggle-track">
+<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-on-surface-variant rounded-full transition-transform duration-200 toggle-thumb"></div>
+</div>
+</label>
+</div>
+</div>
+</section>
+<!-- Workspace Settings -->
+<section class="space-y-6">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<h3 class="font-label-md text-[11px] text-on-surface-variant uppercase tracking-[0.2em]">Workspace Architecture</h3>
+</div>
+<div class="grid grid-cols-1 gap-6">
+<div class="space-y-2">
+<label class="font-label-md text-[10px] text-on-surface-variant uppercase tracking-widest px-1">Model Architecture</label>
+<div class="relative group">
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3.5 appearance-none focus:border-primary focus:ring-0 outline-none font-body-md text-on-surface group-hover:border-outline transition-colors">
+<option>Kestrel Omni-v2 (LTM-Capable)</option>
+<option>Kestrel Core-v1</option>
+<option>Legacy Foundation-v4</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-md text-[10px] text-on-surface-variant uppercase tracking-widest px-1">API Endpoint Secret</label>
+<div class="flex items-center bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3.5 group hover:border-outline transition-colors">
+<span class="flex-1 font-code-sm text-on-surface-variant truncate">ks_pk_••••••••••••••••3aed</span>
+<button class="ml-2 p-1 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined !text-[18px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Privacy & Security -->
+<section class="space-y-6">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2">
+<h3 class="font-label-md text-[11px] text-on-surface-variant uppercase tracking-[0.2em]">Privacy &amp; Security</h3>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 flex items-center justify-between hover:bg-surface-container-low transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-surface-container flex items-center justify-center text-on-surface border border-outline-variant">
+<span class="material-symbols-outlined">key</span>
+</div>
+<div>
+<p class="font-body-lg text-primary font-medium">Identity Credentials</p>
+<p class="text-xs text-on-surface-variant">2FA and Hardware Key Management</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+</section>
+<!-- Danger Zone -->
+<section class="space-y-6 pt-4">
+<div class="p-6 border border-error/30 bg-error/5 rounded-xl space-y-4">
+<div class="flex items-center gap-3 text-error">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">warning</span>
+<h3 class="font-headline-sm uppercase tracking-widest text-sm font-bold">Danger Zone</h3>
+</div>
+<p class="font-body-md text-on-surface-variant leading-relaxed">Deleting your account environment will immediately terminate all active model instances, purge LTM databases, and revoke API access. This action is irreversible.</p>
+<button class="w-full md:w-auto px-8 py-3 border border-error text-error font-bold rounded hover:bg-error hover:text-black transition-all active:scale-[0.98] text-xs uppercase tracking-widest">
+                        Delete Environment
+                    </button>
+</div>
+</section>
+<!-- Footer Meta -->
+<div class="text-center py-12 border-t border-outline-variant">
+<p class="font-label-md text-[9px] text-on-surface-variant/40 uppercase tracking-[0.3em]">Kestrel AI Systems • 2024 • End-to-End Encryption Enabled</p>
+</div>
+</div>
+</main>
+</body></html>

@@ -82,7 +82,7 @@ export default function AuthCallbackScreen() {
   }, [params.code, params.error_description]);
 
   if (isComplete) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href="/" />;
   }
 
   if (!error) {

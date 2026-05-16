@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/constants/colors";
+import { Spacing } from "@/constants/spacing";
+import { Typography } from "@/constants/typography";
 import { exportHtmlAsPdf } from "@/lib/export";
 
 interface PdfCardProps {
@@ -25,7 +27,7 @@ export function PdfCard({ html, title }: PdfCardProps) {
     <View
       style={{
         backgroundColor: Colors.surfaceElevated,
-        borderColor: "#7C3AED",
+        borderColor: Colors.primary,
         borderRadius: 12,
         borderWidth: 1,
         padding: 16,
@@ -36,10 +38,10 @@ export function PdfCard({ html, title }: PdfCardProps) {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <Text style={{ fontSize: 20 }}>📄</Text>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: Colors.textPrimary, fontSize: 15, fontWeight: "600" }}>
+          <Text style={[Typography.bodyProseBold, { color: Colors.textPrimary, flex: 1 }]}>
             {title || "Document"}
           </Text>
-          <Text style={{ color: Colors.textTertiary, fontSize: 12, marginTop: 2 }}>
+          <Text style={[Typography.uiLabel, { color: Colors.textTertiary, marginTop: 2 }]}>
             PDF document
           </Text>
         </View>
@@ -48,17 +50,17 @@ export function PdfCard({ html, title }: PdfCardProps) {
         onPress={handleDownload}
         disabled={loading}
         style={{
-          backgroundColor: "#7C3AED",
-          borderRadius: 10,
+          backgroundColor: Colors.primaryContainer,
+          borderRadius: Spacing.radius.button,
           paddingVertical: 10,
           alignItems: "center",
           opacity: loading ? 0.6 : 1,
         }}
       >
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color={Colors.textPrimary} size="small" />
         ) : (
-          <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>
+          <Text style={[Typography.uiMedium, { color: Colors.onPrimaryContainer }]}>
             Download PDF
           </Text>
         )}

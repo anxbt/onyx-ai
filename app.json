@@ -3,11 +3,17 @@
     "name": "OnyxAI",
     "slug": "onyxai",
     "version": "1.0.0",
+    "icon": "./assets/icon.png",
     "orientation": "portrait",
     "scheme": "onyxai",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.anxbt.onyxai",
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#141218"
+      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -15,7 +21,13 @@
       "supportsTablet": false
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#141218"
     },
     "plugins": [
       "expo-router",
@@ -24,6 +36,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bcd5c811-7275-47ae-a8f4-6c40184abac0"
+      }
     }
   }
 }

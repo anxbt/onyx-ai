@@ -37,7 +37,7 @@ export default function SignInScreen() {
     try {
       setIsSubmitting(true);
       await signInWithGoogle();
-      router.replace("/(tabs)");
+      router.replace("/");
     } catch (error) {
       Alert.alert("Sign-in failed", error instanceof Error ? error.message : "Could not sign in");
     } finally {

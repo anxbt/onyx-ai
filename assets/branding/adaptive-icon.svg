@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#cfbcff"/>
+      <stop offset="1" stop-color="#6750a4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent background; foreground only for Android adaptive icon -->
+  <g>
+    <circle cx="512" cy="512" r="270" fill="none" stroke="url(#g)" stroke-width="54"/>
+
+    <path d="M512 330 L650 468 L512 706 L374 468 Z" fill="url(#g)"/>
+    <path d="M512 330 L650 468 L512 520 L374 468 Z" fill="#e0d2ff" fill-opacity="0.18"/>
+    <path d="M512 520 L650 468 L512 706 Z" fill="#381e72" fill-opacity="0.22"/>
+    <path d="M512 520 L374 468 L512 706 Z" fill="#1e192e" fill-opacity="0.38"/>
+
+    <path d="M740 330 C758 372 770 384 812 402 C770 420 758 432 740 474 C722 432 710 420 668 402 C710 384 722 372 740 330 Z" fill="#cfbcff" opacity="0.9"/>
+  </g>
+</svg>

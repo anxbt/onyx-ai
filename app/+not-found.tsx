@@ -20,7 +20,7 @@ export default function NotFoundScreen() {
       <Text style={{ color: Colors.textSecondary, fontSize: 15, marginBottom: 20 }}>
         This route does not exist yet in the current checkpoint.
       </Text>
-      <Link asChild href="/(tabs)">
+      <Link asChild href="/">
         <Button label="Go home" />
       </Link>
     </View>

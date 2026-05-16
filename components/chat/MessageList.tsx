@@ -1,6 +1,7 @@
 import { ScrollView, View } from "react-native";
 
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { Spacing } from "@/constants/spacing";
 import type { Message } from "@/types";
 
 interface MessageListProps {
@@ -12,7 +13,7 @@ interface MessageListProps {
 export function MessageList({ messages, streamingContent, activeConversationId }: MessageListProps) {
   return (
     <ScrollView
-      contentContainerStyle={{ gap: 14, paddingBottom: 16 }}
+      contentContainerStyle={{ gap: Spacing.sectionGap, paddingBottom: Spacing.lg }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

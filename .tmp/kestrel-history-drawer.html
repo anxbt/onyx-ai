@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kestrel AI - Chat History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#c8c6c6",
+                        "primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#474746",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "secondary-fixed": "#e5e2e1",
+                        "tertiary-container": "#e4e2e1",
+                        "on-error": "#690005",
+                        "on-primary-container": "#636565",
+                        "on-surface-variant": "#c4c7c8",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffffff",
+                        "surface": "#131313",
+                        "error-container": "#93000a",
+                        "surface-bright": "#393939",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-tint": "#c6c6c7",
+                        "primary-container": "#e2e2e2",
+                        "surface-container-low": "#1b1b1b",
+                        "on-tertiary-container": "#656464",
+                        "surface-container-lowest": "#0e0e0e",
+                        "tertiary-fixed": "#e4e2e1",
+                        "inverse-primary": "#5d5f5f",
+                        "secondary-container": "#474746",
+                        "on-tertiary": "#303030",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-dim": "#131313",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-primary": "#2f3131",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "outline": "#8e9192",
+                        "inverse-surface": "#e2e2e2",
+                        "surface-container-highest": "#353535",
+                        "inverse-on-surface": "#303030",
+                        "surface-container": "#1f1f1f",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed": "#e2e2e2",
+                        "on-surface": "#e2e2e2",
+                        "on-secondary-container": "#b7b5b4",
+                        "on-secondary": "#303030",
+                        "secondary": "#c8c6c5",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "background": "#131313",
+                        "outline-variant": "#444748",
+                        "surface-variant": "#353535",
+                        "on-background": "#e2e2e2",
+                        "secondary-fixed-dim": "#c8c6c5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "gutter": "16px",
+                        "margin-desktop": "40px",
+                        "base": "4px",
+                        "xs": "8px",
+                        "lg": "24px",
+                        "sm": "12px",
+                        "md": "16px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "code-sm": ["JetBrains Mono"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "code-sm": ["13px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #000000;
+            color: #e2e2e2;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 2px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-hidden">
+<!-- Background Overlay (Chat Interface) -->
+<div class="fixed inset-0 flex flex-col bg-background opacity-40 pointer-events-none">
+<header class="flex justify-between items-center w-full px-md py-sm border-b border-outline-variant bg-background">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-background">menu</span>
+<h1 class="font-headline-sm text-headline-sm font-semibold text-on-background">Kestrel AI</h1>
+</div>
+<div class="flex items-center gap-md">
+<span class="font-label-md text-label-md text-primary font-bold border-b-2 border-primary">Ask</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Imagine</span>
+</div>
+<span class="material-symbols-outlined text-on-background">edit_note</span>
+</header>
+<main class="flex-1 flex flex-col items-center justify-center p-xl">
+<span class="material-symbols-outlined text-8xl opacity-20" style="font-variation-settings: 'wght' 100;">explore</span>
+<div class="mt-xl max-w-2xl w-full">
+<div class="border border-outline-variant bg-surface-container rounded-xl p-md">
+<p class="text-on-surface-variant">Ask anything...</p>
+</div>
+</div>
+</main>
+</div>
+<!-- Navigation Drawer (History Sidebar) -->
+<aside class="fixed inset-y-0 left-0 z-50 flex flex-col p-md bg-surface-container-lowest dark:bg-surface-container-lowest h-full w-80 left-0 border-r border-outline-variant transition-transform duration-300 ease-in-out">
+<!-- Header / Profile Section -->
+<div class="flex items-center justify-between mb-lg">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant">
+<img alt="Anubrat Sahoo" class="w-full h-full object-cover" data-alt="A professional headshot of a young male software engineer with a friendly expression. He is wearing a clean dark shirt, set against a neutral, minimalist grey studio background with soft directional lighting that emphasizes a modern, high-end technical professional aesthetic. The image is crisp, high-contrast, and follows a monochromatic theme." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYFnQXKzsHt2fMpjQ-TkYWucwM1UO2W8R4PexGQxNTfpn-RjrW2y4fqtGYX9juCA-LhsMuhO-i3K5QEGGXS0MbSJUJLGA5XcEBfBxUbjvuTEG2CiaO6Yd0__kOCy23EAEaERmDI6ntN9z3sxR_Z-RQVRaBLXtVwMMsGzqJ9hoz51Kmwurjc-Y8xlJL9QGKJRqfAcMsav4Fq222rmYq59Nrfi-gRIFPnOTuNK-ueVFe5Dok21wj0F16o90P57EqfPV0LWW0rQjo-W8"/>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Anubrat Sahoo</h2>
+<p class="font-label-md text-label-md text-on-surface-variant">Kestrel Plus Member</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors border border-outline-variant">
+<span class="material-symbols-outlined text-sm">keyboard_double_arrow_right</span>
+</button>
+</div>
+<!-- Action Items -->
+<div class="space-y-xs mb-lg">
+<button class="w-full flex items-center gap-md px-md py-sm rounded-lg bg-surface-container border border-outline-variant hover:bg-surface-container-low transition-colors group">
+<span class="material-symbols-outlined text-on-surface group-hover:scale-110 transition-transform">alarm</span>
+<span class="font-body-md text-body-md text-on-surface">Tasks</span>
+</button>
+<button class="w-full flex items-center justify-between px-md py-sm rounded-lg bg-primary text-on-primary border border-primary hover:opacity-90 transition-all group overflow-hidden relative">
+<div class="flex items-center gap-md relative z-10">
+<span class="material-symbols-outlined">bolt</span>
+<div class="text-left">
+<p class="font-body-md text-body-md font-bold">SuperGrok</p>
+<p class="text-[10px] opacity-80 leading-tight">Early access to new features</p>
+</div>
+</div>
+<div class="px-sm py-1 bg-surface-container-lowest text-on-surface rounded-full text-[10px] font-bold uppercase tracking-wider relative z-10">
+                    Upgrade
+                </div>
+</button>
+</div>
+<!-- History Content -->
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<div class="flex items-center justify-between mb-sm px-xs">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest text-[10px]">Conversations</span>
+<span class="material-symbols-outlined text-xs text-on-surface-variant">keyboard_arrow_up</span>
+</div>
+<!-- History List Items -->
+<div class="space-y-base">
+<!-- Vedic Astrology Guide (Active) -->
+<div class="group flex flex-col p-md rounded-lg bg-surface-container-high text-on-surface font-semibold border border-transparent transition-all cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="flex gap-md">
+<span class="material-symbols-outlined text-primary" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-body-md text-body-md">Vedic Astrology Guide</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<span class="ml-xl font-label-md text-label-md text-on-surface-variant mt-1">Apr 05</span>
+</div>
+<!-- Wide Toe Box Benefits -->
+<div class="group flex flex-col p-md rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all cursor-pointer border border-transparent">
+<div class="flex items-start justify-between">
+<div class="flex gap-md">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-body-md text-body-md">Wide Toe Box Benefits</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<span class="ml-xl font-label-md text-label-md text-on-surface-variant mt-1">Apr 01</span>
+</div>
+<!-- MacBook Longevity -->
+<div class="group flex flex-col p-md rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all cursor-pointer border border-transparent">
+<div class="flex items-start justify-between">
+<div class="flex gap-md">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-body-md text-body-md">MacBook Longevity</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<span class="ml-xl font-label-md text-label-md text-on-surface-variant mt-1">Mar 21</span>
+</div>
+<!-- Best GitHub Repo -->
+<div class="group flex flex-col p-md rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all cursor-pointer border border-transparent">
+<div class="flex items-start justify-between">
+<div class="flex gap-md">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-body-md text-body-md">GitHub Repo Analysis</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<span class="ml-xl font-label-md text-label-md text-on-surface-variant mt-1">Mar 20</span>
+</div>
+<!-- Aave V3 Positions -->
+<div class="group flex flex-col p-md rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all cursor-pointer border border-transparent">
+<div class="flex items-start justify-between">
+<div class="flex gap-md">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-body-md text-body-md">Aave V3 Positions</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</div>
+<span class="ml-xl font-label-md text-label-md text-on-surface-variant mt-1">Mar 04</span>
+</div>
+</div>
+</div>
+<!-- Footer Search/Settings -->
+<div class="pt-md mt-sm border-t border-outline-variant flex gap-sm">
+<div class="flex-1 relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-sm text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-full pl-xl pr-md py-xs font-body-md text-body-md focus:outline-none focus:border-primary transition-colors" placeholder="Search" type="text"/>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full border border-outline-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">settings</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-on-surface text-surface border border-on-surface hover:opacity-90 transition-all">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+</aside>
+<!-- Contextual FAB (Only for main chat) -->
+<div class="fixed bottom-0 left-0 w-full flex items-center justify-between px-md pb-md bg-transparent z-40 md:hidden">
+<div class="bg-surface-container rounded-xl mx-md mb-md p-xs flex items-center justify-around w-full border border-outline-variant">
+<span class="material-symbols-outlined text-on-surface-variant p-2" data-icon="attach_file">attach_file</span>
+<span class="material-symbols-outlined text-on-surface-variant p-2" data-icon="bolt">bolt</span>
+<span class="material-symbols-outlined text-on-surface-variant p-2" data-icon="mic">mic</span>
+<div class="bg-primary text-on-primary rounded-full p-2 scale-90">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import {
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
 } from "react-native";
 
 import { Colors } from "@/constants/colors";
+import { Typography } from "@/constants/typography";
 import { copyToClipboard } from "@/lib/clipboard";
 import { tokenizeFast, type TokenType } from "@/lib/syntaxHighlighter";
 
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.codeBlockBackground,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderHairline,
     overflow: "hidden",
     marginVertical: 8,
   },
@@ -113,13 +113,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.codeBackground,
+    borderBottomColor: Colors.borderHairline,
   },
   langBadge: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "600",
+    ...Typography.uiLabel,
+    color: Colors.textTertiary,
     textTransform: "lowercase",
   },
   copyBtn: {
@@ -127,11 +125,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.borderHairline,
   },
   copyText: {
+    ...Typography.uiLabel,
     color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "600",
   },
   codeScroll: {
     paddingVertical: 12,
@@ -146,9 +145,8 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   lineNumber: {
+    ...Typography.dataMono,
     color: Colors.textTertiary,
-    fontSize: 13,
-    lineHeight: 20,
     width: 36,
     textAlign: "right",
     paddingRight: 10,
@@ -160,8 +158,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   token: {
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    ...Typography.codeBlock,
   },
 });

@@ -21,10 +21,12 @@ export default function CreditsScreen() {
 
   async function handleTopUp(pack: TopUpPack) {
     if (!session?.accessToken) {
+      console.error("[credits] No access token — user not signed in");
       Alert.alert("Sign in required", "Please sign in before topping up credits.");
       return;
     }
 
+    console.log("[credits] Starting top-up, token prefix:", session.accessToken.slice(0, 20) + "...");
     try {
       setIsPaying(true);
       await startRazorpayTopUp({
@@ -35,7 +37,9 @@ export default function CreditsScreen() {
       setSheetVisible(false);
       await refresh();
     } catch (nextError) {
-      Alert.alert("Payment failed", nextError instanceof Error ? nextError.message : "Could not complete payment");
+      const msg = nextError instanceof Error ? nextError.message : "Could not complete payment";
+      console.error("[credits] Top-up failed:", msg);
+      Alert.alert("Payment failed", msg);
     } finally {
       setIsPaying(false);
     }

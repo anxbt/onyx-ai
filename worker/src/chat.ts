@@ -115,50 +115,12 @@ function buildSystemContext(
 }
 
 function getArtifactInstructions(): string {
-  return `[Artifact formatting — use when the user asks for visual explanations]
+  return `Generate styled HTML in \`\`\`html code fences for visual explanations.
 
-Generate styled HTML wrapped in code fences with language tag "html".
+For PDFs: add data-type="pdf" data-title="Title" to root <div>.
+For diagrams: add data-type="artifact" to root <div>.
 
-For DOWNLOADABLE DOCUMENTS (PDFs, study guides, reports):
-Add data-type="pdf" and data-title="Your Title" to a root <div>. Example:
-
-\`\`\`html
-<div data-type="pdf" data-title="Railways Study Guide">
-  <h1>Indian Railways GK</h1>
-  <p>First locomotive ran in 1853 from Bombay to Thane.</p>
-  <h2>Railway Zones</h2>
-  <table>
-    <tr><td>Northern Railway</td><td>Delhi</td></tr>
-    <tr><td>Southern Railway</td><td>Chennai</td></tr>
-  </table>
-</div>
-\`\`\`
-
-For INLINE DIAGRAMS (flowcharts, roadmaps, comparison tables, charts):
-Add data-type="artifact" to a root <div>. Example:
-
-\`\`\`html
-<div data-type="artifact">
-  <div style="display:flex;gap:8px;">
-    <div style="background:#7C3AED;padding:8px 16px;border-radius:12px;color:white;">Step 1</div>
-    <span style="align-self:center;">→</span>
-    <div style="background:#7C3AED;padding:8px 16px;border-radius:12px;color:white;">Step 2</div>
-  </div>
-</div>
-\`\`\`
-
-Design rules:
-- Dark background #0A0A0A, text #ECECED, accent #7C3AED (solid colors, no gradients)
-- Left-aligned only, no centered text
-- Max 3 colors per element
-- Labels under 40 characters
-- For trees: nested <ul> with border-left and indentation
-- For bar charts: CSS bars with percentage widths
-- For flowcharts: flexbox rows with arrows
-- Use <table> for structured comparisons
-- Use <section> with margin-top for large gaps between sections
-
-When the user asks for a PDF or document, ONLY output the \`\`\`html block — no markdown summary before or after. The app will show a download card.`;
+Use dark bg #0A0A0A, text #ECECED, accent #7C3AED. Left-aligned, max 3 colors, solid only.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -227,7 +189,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               query: lastUserContent,
               search_depth: "advanced",
               include_answer: true,
-              max_results: 3,
+              max_results: 2,
             }),
           });
           if (tavilyRes.ok) {
@@ -241,7 +203,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               const searchCtx =
                 "[Web search results]\n" +
                 (answer ? `Summary: ${answer}\n\n` : "") +
-                results.map((r) => `Title: ${r.title}\nSource: ${r.url}\nContent: ${r.content}`).join("\n\n") +
+                results.map((r) => `Title: ${r.title}\nSource: ${r.url}\nContent: ${r.content.slice(0, 500)}`).join("\n\n") +
                 "\n\nUse these sources if relevant to the user's question. Cite them as [1], [2], etc.";
               messages = [{ role: "system", content: searchCtx }, ...messages];
             }
@@ -285,6 +247,9 @@ export async function handleChat(c: Context<HonoEnv>) {
       }
     }
 
+    const estimatedPrompt = estimateTokens(JSON.stringify(finalMessages));
+    const maxOutput = Math.max(4096, Math.min(model.maxOutput, model.contextWindow - estimatedPrompt - 1024));
+
     const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -297,7 +262,7 @@ export async function handleChat(c: Context<HonoEnv>) {
         model: model.id,
         messages: finalMessages,
         stream: true,
-        max_tokens: model.maxOutput,
+        max_tokens: maxOutput,
       }),
     });
 
