@@ -94,13 +94,12 @@ export default function ChatScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
+      {/* Header - no border, clean */}
       <View
         style={{
           paddingHorizontal: Spacing.mobileMargin,
           paddingTop: Math.max(insets.top, Spacing.xl),
           paddingBottom: Spacing.md,
-          borderBottomColor: Colors.borderHairline,
-          borderBottomWidth: 1,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
@@ -113,8 +112,11 @@ export default function ChatScreen() {
         <View style={{ flex: 1 }}>
           <ModelBadge modelId={activeModelId} onPress={() => setSelectorVisible(true)} />
         </View>
-        <Pressable onPress={() => router.push("/credits")}>
-          <Ionicons color={Colors.textSecondary} name="wallet-outline" size={22} />
+        <Pressable onPress={() => router.push("/credits")} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Ionicons color={creditBalance < 50 ? Colors.primary : Colors.textSecondary} name="wallet-outline" size={20} />
+          <Text style={[Typography.uiLabel, { color: creditBalance < 50 ? Colors.primary : Colors.textSecondary }]}>
+            ₹{creditBalance.toFixed(0)}
+          </Text>
         </Pressable>
       </View>
 
@@ -131,10 +133,21 @@ export default function ChatScreen() {
             gap: Spacing.sectionGap,
           }}
         >
-          <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
-            {activeModel.displayName} · {activeModel.provider} · {activeModel.isFree ? "Free" : "Pay-as-you-go"}
-          </Text>
-          {error ? <Text style={{ color: Colors.danger, fontSize: 13 }}>{error}</Text> : null}
+          {/* Error banner */}
+          {error ? (
+            <View
+              style={{
+                backgroundColor: Colors.surfaceElevated,
+                borderLeftWidth: 3,
+                borderLeftColor: Colors.danger,
+                padding: Spacing.md,
+                borderRadius: 4,
+              }}
+            >
+              <Text style={[Typography.uiLabel, { color: Colors.danger }]}>{error}</Text>
+            </View>
+          ) : null}
+
           <View style={{ flex: 1 }}>
             <MessageList
               activeConversationId={activeConversationId ?? "new"}

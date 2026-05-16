@@ -31,12 +31,12 @@ export const Typography: Record<string, TextStyle> = {
   bodyProse: {
     fontFamily: IBMPlexSans,
     fontSize: 15,
-    lineHeight: 24,
+    lineHeight: 26,
   },
   bodyProseBold: {
     fontFamily: IBMPlexSansMedium,
     fontSize: 15,
-    lineHeight: 24,
+    lineHeight: 26,
   },
   codeBlock: {
     fontFamily: JetBrainsMono,

@@ -14,17 +14,7 @@ export function HtmlArtifact({ html }: HtmlArtifactProps) {
   const fullHtml = wrapHtml(html);
 
   return (
-    <View
-      style={{
-        backgroundColor: Colors.surfaceElevated,
-        borderColor: Colors.borderHairline,
-        borderRadius: 12,
-        borderWidth: 1,
-        overflow: "hidden",
-        marginVertical: 6,
-        height: 400,
-      }}
-    >
+    <View style={{ height: 400 }}>
       {/* @ts-ignore — iframe is valid on web */}
       <iframe
         srcDoc={fullHtml}
@@ -32,7 +22,7 @@ export function HtmlArtifact({ html }: HtmlArtifactProps) {
           width: "100%",
           height: "100%",
           border: "none",
-          backgroundColor: "#141218",
+          backgroundColor: "transparent",
         }}
         sandbox="allow-scripts"
       />

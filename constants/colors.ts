@@ -5,16 +5,16 @@ export const Colors = {
   surfaceElevated: "#1d2024",
   surfaceContainer: "#211f24",
 
-  // Primary
-  primary: "#cfbcff",
-  primaryContainer: "#6750a4",
-  onPrimary: "#381e72",
-  onPrimaryContainer: "#e0d2ff",
+  // Primary (warm amber)
+  primary: "#D4A574",
+  primaryContainer: "#8B6B4A",
+  onPrimary: "#1A1510",
+  onPrimaryContainer: "#F5E6D3",
 
   // Semantic aliases
-  accent: "#cfbcff",
-  accentMuted: "#6750a4",
-  accentSubtle: "#1e192e",
+  accent: "#D4A574",
+  accentMuted: "#8B6B4A",
+  accentSubtle: "#2A2118",
 
   // Text
   textPrimary: "#e6e0e9",
@@ -41,16 +41,16 @@ export const Colors = {
   codeBlockBackground: "#1d2024",
   inlineCodeBackground: "#1d2024",
   codeText: "#e6e0e9",
-  syntaxKeyword: "#cfbcff",
+  syntaxKeyword: "#D4A574",
   syntaxString: "#a8e6cf",
   syntaxComment: "#948e9c",
   syntaxNumber: "#e7c365",
-  syntaxFunction: "#cdc0e9",
+  syntaxFunction: "#D4A574",
   syntaxOperator: "#cbc4d2",
   syntaxType: "#a8e6cf",
-  linkColor: "#cdc0e9",
-  blockquoteBorder: "#cfbcff",
-  blockquoteBackground: "#1e192e",
+  linkColor: "#D4A574",
+  blockquoteBorder: "#D4A574",
+  blockquoteBackground: "#2A2118",
   tableBorder: "#272a2f",
   tableHeaderBackground: "#1d2024",
   tableRowEven: "#15171a",

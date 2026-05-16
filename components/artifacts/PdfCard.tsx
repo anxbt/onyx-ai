@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
@@ -24,25 +25,15 @@ export function PdfCard({ html, title }: PdfCardProps) {
   };
 
   return (
-    <View
-      style={{
-        backgroundColor: Colors.surfaceElevated,
-        borderColor: Colors.primary,
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: 16,
-        gap: 12,
-        marginVertical: 6,
-      }}
-    >
+    <View style={{ gap: 12 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Text style={{ fontSize: 20 }}>📄</Text>
+        <Ionicons name="document-outline" size={20} color={Colors.textSecondary} />
         <View style={{ flex: 1 }}>
-          <Text style={[Typography.bodyProseBold, { color: Colors.textPrimary, flex: 1 }]}>
+          <Text style={[Typography.uiMedium, { color: Colors.textPrimary }]}>
             {title || "Document"}
           </Text>
-          <Text style={[Typography.uiLabel, { color: Colors.textTertiary, marginTop: 2 }]}>
-            PDF document
+          <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
+            PDF
           </Text>
         </View>
       </View>
@@ -50,18 +41,19 @@ export function PdfCard({ html, title }: PdfCardProps) {
         onPress={handleDownload}
         disabled={loading}
         style={{
-          backgroundColor: Colors.primaryContainer,
+          backgroundColor: Colors.primary,
           borderRadius: Spacing.radius.button,
           paddingVertical: 10,
-          alignItems: "center",
+          paddingHorizontal: 16,
+          alignSelf: "flex-start",
           opacity: loading ? 0.6 : 1,
         }}
       >
         {loading ? (
-          <ActivityIndicator color={Colors.textPrimary} size="small" />
+          <ActivityIndicator color={Colors.onPrimary} size="small" />
         ) : (
-          <Text style={[Typography.uiMedium, { color: Colors.onPrimaryContainer }]}>
-            Download PDF
+          <Text style={[Typography.uiMedium, { color: Colors.onPrimary }]}>
+            Download
           </Text>
         )}
       </Pressable>

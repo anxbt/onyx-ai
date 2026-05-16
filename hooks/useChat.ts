@@ -29,6 +29,8 @@ export function useChat({
   const [streamingContent, setStreamingContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
+  const sawContentRef = useRef(false);
+  const polyfillTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -131,28 +133,69 @@ export function useChat({
       forceSearch: search?.forceSearch,
       callbacks: {
         onContent: (accumulated) => {
+          sawContentRef.current = true;
           finalContent = accumulated;
           setStreamingContent(accumulated);
         },
         onDone: (result) => {
-          const assistantMessage: Message = {
-            id: result.messageId ?? `assistant-${Date.now()}`,
-            conversationId: convId,
-            role: "assistant",
-            content: finalContent || "",
-            model: modelId,
-            createdAt: new Date().toISOString(),
+          // If server didn't stream any chunks, polyfill streaming locally
+          const performPolyfill = !sawContentRef.current && finalContent;
+
+          const pushFinalMessage = (contentToPush: string) => {
+            const assistantMessage: Message = {
+              id: result.messageId ?? `assistant-${Date.now()}`,
+              conversationId: convId,
+              role: "assistant",
+              content: contentToPush || "",
+              model: modelId,
+              createdAt: new Date().toISOString(),
+            };
+
+            setMessages((current) => [...current, assistantMessage]);
+            setStreaming(false);
+            setStreamingContent("");
           };
 
-          setMessages((current) => [...current, assistantMessage]);
-          setStreaming(false);
-          setStreamingContent("");
+          if (performPolyfill) {
+            // Reveal text in small increments to emulate streaming
+            const text = finalContent;
+            let idx = 0;
+            const chunkSize = Math.max(1, Math.floor(text.length / 30));
+            setStreaming(true);
+            setStreamingContent("");
+            polyfillTimerRef.current = global.setInterval(() => {
+              if (idx >= text.length) {
+                if (polyfillTimerRef.current) {
+                  clearInterval(polyfillTimerRef.current as any);
+                  polyfillTimerRef.current = null;
+                }
+                pushFinalMessage(text);
+                return;
+              }
+              idx = Math.min(text.length, idx + chunkSize);
+              setStreamingContent(text.slice(0, idx));
+            }, 50) as unknown as number;
+          } else {
+            const assistantMessage: Message = {
+              id: result.messageId ?? `assistant-${Date.now()}`,
+              conversationId: convId,
+              role: "assistant",
+              content: finalContent || "",
+              model: modelId,
+              createdAt: new Date().toISOString(),
+            };
 
+            setMessages((current) => [...current, assistantMessage]);
+            setStreaming(false);
+            setStreamingContent("");
+          }
+
+          const assistantContent = finalContent || "";
           updateConversationSummary(
             convId,
             trimmed.slice(0, 120),
             modelId,
-            estimateTokens([...requestMessages, assistantMessage].map((message) => message.content).join(" ")),
+            estimateTokens([...requestMessages, { content: assistantContent }].map((message) => message.content).join(" ")),
           ).catch(() => {});
 
           // Wave 1: trigger summarization every 10 messages
@@ -178,6 +221,11 @@ export function useChat({
   function stopStreaming() {
     abortRef.current?.();
     abortRef.current = null;
+    if (polyfillTimerRef.current) {
+      clearInterval(polyfillTimerRef.current as any);
+      polyfillTimerRef.current = null;
+    }
+    sawContentRef.current = false;
     setStreaming(false);
   }
 

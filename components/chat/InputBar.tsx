@@ -48,22 +48,24 @@ export function InputBar({
     return <Button label="Top up credits to continue" onPress={onTopUp} />;
   }
 
+  const showTokenEstimate = draft.length > 0;
+
   return (
     <View style={{ gap: Spacing.sm }}>
       <AttachmentPreview attachments={attachments} />
       <View
         style={{
-          backgroundColor: Colors.surface,
-          borderColor: Colors.borderHairline,
+          backgroundColor: Colors.surfaceElevated,
           borderRadius: Spacing.radius.container,
-          borderWidth: 1,
           padding: Spacing.md,
           gap: Spacing.sm,
         }}
       >
-        <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
-          est {estimateTokens(draft)} tok · pay-as-you-go
-        </Text>
+        {showTokenEstimate ? (
+          <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
+            est {estimateTokens(draft)} tok
+          </Text>
+        ) : null}
         <TextInput
           multiline
           onChangeText={onChangeDraft}
@@ -91,14 +93,11 @@ export function InputBar({
             </Pressable>
             {onToggleSearch ? (
               <Pressable onPress={onToggleSearch} hitSlop={8}>
-                <Text
-                  style={[
-                    Typography.uiLabel,
-                    { color: searchMode === "off" ? Colors.textTertiary : Colors.primary },
-                  ]}
-                >
-                  🌐
-                </Text>
+                <Ionicons
+                  name="globe-outline"
+                  size={18}
+                  color={searchMode === "off" ? Colors.textTertiary : Colors.primary}
+                />
               </Pressable>
             ) : null}
           </View>
@@ -106,15 +105,13 @@ export function InputBar({
             disabled={!streaming && !canSend}
             onPress={streaming ? onStop : onSend}
             style={{
-              backgroundColor: streaming || canSend ? Colors.primary : "transparent",
-              borderColor: streaming || canSend ? Colors.primary : Colors.borderHairline,
-              borderWidth: 1,
+              backgroundColor: streaming || canSend ? Colors.primary : Colors.surfaceContainer,
               borderRadius: Spacing.radius.primaryAction,
               paddingHorizontal: Spacing.md,
               paddingVertical: Spacing.sm,
             }}
           >
-            <Text style={[Typography.uiMedium, { color: streaming || canSend ? Colors.onPrimary : Colors.textSecondary }]}>
+            <Text style={[Typography.uiMedium, { color: streaming || canSend ? Colors.onPrimary : Colors.textTertiary }]}>
               {streaming ? "Stop" : "Send"}
             </Text>
           </Pressable>
@@ -123,4 +120,3 @@ export function InputBar({
     </View>
   );
 }
-

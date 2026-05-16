@@ -18,15 +18,13 @@ export function SuggestionChips({ suggestions, onSelect }: SuggestionChipsProps)
           key={i}
           onPress={() => onSelect(text)}
           style={{
-            backgroundColor: Colors.surfaceContainer,
-            borderWidth: 1,
-            borderColor: Colors.borderHairline,
-            paddingHorizontal: 14,
+            backgroundColor: Colors.surfaceElevated,
+            paddingHorizontal: 12,
             paddingVertical: 6,
-            borderRadius: 20,
+            borderRadius: 4,
           }}
         >
-          <Text style={[Typography.uiLabel, { color: Colors.textSecondary, fontSize: 11 }]}>
+          <Text style={[Typography.uiLabel, { color: Colors.textSecondary }]}>
             {text}
           </Text>
         </Pressable>

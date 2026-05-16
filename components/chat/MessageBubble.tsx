@@ -1,7 +1,6 @@
-import React, { memo, useMemo, useState } from "react";
+import React, { memo, useMemo } from "react";
 import { Image, Text, View } from "react-native";
 
-import { ArtifactTabs } from "@/components/chat/ArtifactTabs";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
 import { SuggestionChips } from "@/components/chat/SuggestionChips";
@@ -11,20 +10,10 @@ import { Typography } from "@/constants/typography";
 import { getModelConfig } from "@/lib/models";
 import type { Message } from "@/types";
 
-type ArtifactTab = "text" | "flowchart" | "code" | "pdf";
-
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
   onSuggestionSelect?: (text: string) => void;
-}
-
-function detectArtifactTypes(content: string): ArtifactTab[] {
-  const types: ArtifactTab[] = ["text"];
-  if (/```flowchart/.test(content)) types.push("flowchart");
-  if (/```(?!flowchart|roadmap|chart|html)[a-z]*\n/i.test(content) || /```$/.test(content)) types.push("code");
-  if (/```html[\s\S]*?data-type\s*=\s*"pdf"/i.test(content)) types.push("pdf");
-  return types;
 }
 
 function formatTime(iso: string): string {
@@ -45,13 +34,6 @@ function MessageBubbleComponent({ message, isStreaming, onSuggestionSelect }: Me
   const isUser = message.role === "user";
   const model = message.model ? getModelConfig(message.model) : null;
 
-  const artifactTypes = useMemo(() => {
-    if (isUser || isStreaming) return ["text"] as ArtifactTab[];
-    return detectArtifactTypes(message.content);
-  }, [message.content, isUser, isStreaming]);
-
-  const [activeTab, setActiveTab] = useState<ArtifactTab>(artifactTypes[0]);
-
   const suggestions = useMemo(() => {
     if (isUser || isStreaming) return [];
     return extractSuggestions(message.content);
@@ -65,20 +47,15 @@ function MessageBubbleComponent({ message, isStreaming, onSuggestionSelect }: Me
         gap: Spacing.xs,
       }}
     >
-      <View
-        style={{
-          backgroundColor: isUser ? Colors.userBubble : Colors.assistantSurface,
-          borderColor: Colors.borderHairline,
-          borderRadius: Spacing.radius.container,
-          borderWidth: isUser ? 0 : 0,
-          paddingHorizontal: 12,
-          paddingVertical: 6,
-          gap: Spacing.xl,
-        }}
-      >
-        {!isUser && model ? (
-          <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>{model.displayName}</Text>
-        ) : null}
+         <View
+           style={{
+             backgroundColor: isUser ? Colors.userBubble : "transparent",
+             borderRadius: isUser ? Spacing.radius.container : 0,
+            paddingHorizontal: isUser ? 10 : 0,
+            paddingVertical: isUser ? 6 : 0,
+            gap: isUser ? Spacing.xs : Spacing.xs,
+           }}
+         >
         {message.attachments?.map((att) =>
           att.type === "image" && att.remoteUrl ? (
             <Image
@@ -89,38 +66,52 @@ function MessageBubbleComponent({ message, isStreaming, onSuggestionSelect }: Me
                 aspectRatio: 4 / 3,
                 borderRadius: Spacing.radius.button,
                 backgroundColor: Colors.surfaceElevated,
+                marginBottom: Spacing.md,
               }}
               resizeMode="cover"
             />
-          ) : null,
+          ) : null
         )}
-        {!isUser && artifactTypes.length > 1 ? (
-          <ArtifactTabs activeTab={activeTab} availableTabs={artifactTypes} onTabChange={setActiveTab} />
-        ) : null}
-        <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
+        <MarkdownRenderer content={(message.content || "").trim()} isStreaming={isStreaming} />
         {isStreaming ? <StreamingIndicator /> : null}
         {suggestions.length > 0 && onSuggestionSelect ? (
           <SuggestionChips suggestions={suggestions} onSelect={onSuggestionSelect} />
         ) : null}
+        
+        {/* Footer: model name and timestamp */}
+        {!isUser && (model || message.createdAt) ? (
+          <View style={{ flexDirection: "row", marginTop: Spacing.md, gap: 8 }}>
+            {model ? (
+              <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
+                {model.displayName}
+              </Text>
+            ) : null}
+            {message.createdAt && !isStreaming ? (
+              <Text style={[Typography.uiLabel, { color: Colors.textTertiary }]}>
+                · {formatTime(message.createdAt)}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        
+        {/* User message timestamp */}
+        {isUser && message.createdAt && !isStreaming ? (
+          <Text
+            style={[
+              Typography.uiLabel,
+              {
+                color: Colors.textTertiary,
+                marginTop: 0,
+                alignSelf: "flex-end",
+              },
+            ]}
+          >
+            {formatTime(message.createdAt)}
+          </Text>
+        ) : null}
       </View>
-      {!isStreaming && message.createdAt ? (
-        <Text
-          style={[
-            Typography.uiLabel,
-            {
-              color: Colors.textTertiary,
-              opacity: 0.4,
-              alignSelf: isUser ? "flex-end" : "flex-start",
-              paddingHorizontal: 4,
-            },
-          ]}
-        >
-          {formatTime(message.createdAt)}
-        </Text>
-      ) : null}
     </View>
   );
 }
 
 export const MessageBubble = memo(MessageBubbleComponent);
-

@@ -1,146 +1,80 @@
 import React from "react";
-import { Text, View } from "react-native";
-import Svg, { Line, Polygon, Rect, Text as SvgText } from "react-native-svg";
-
-import { Colors } from "@/constants/colors";
-import { Typography } from "@/constants/typography";
-
-interface FlowchartNode {
-  id: string;
-  label: string;
-  shape?: "rounded" | "rectangle" | "diamond";
-}
-
-interface FlowchartEdge {
-  from: string;
-  to: string;
-  label?: string;
-}
-
-interface FlowchartData {
-  nodes: FlowchartNode[];
-  edges: FlowchartEdge[];
-}
+import { View } from "react-native";
+import WebView from "react-native-webview";
 
 interface FlowchartProps {
   data: string;
 }
 
-const NODE_W = 140;
-const NODE_H = 36;
-const V_GAP = 56;
-
-function renderShape(shape: string | undefined) {
-  if (shape === "diamond") {
-    const cx = NODE_W / 2;
-    const cy = NODE_H / 2;
-    const w = NODE_W / 2;
-    const h = NODE_H / 2;
-    return (
-      <Polygon
-        points={`${cx},${cy - h} ${cx + w},${cy} ${cx},${cy + h} ${cx - w},${cy}`}
-        fill={Colors.surfaceElevated}
-        stroke={Colors.primary}
-        strokeWidth={1.5}
-      />
-    );
-  }
-  return (
-    <Rect
-      x={0}
-      y={0}
-      width={NODE_W}
-      height={NODE_H}
-      rx={shape === "rounded" ? NODE_H / 2 : 4}
-      fill={Colors.surfaceElevated}
-      stroke={Colors.primary}
-      strokeWidth={1}
-    />
-  );
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function Flowchart({ data }: FlowchartProps) {
-  let parsed: FlowchartData | null = null;
-  try {
-    parsed = JSON.parse(data);
-  } catch {
-    return (
-      <View style={{ padding: 8 }}>
-        <Text style={{ color: Colors.danger, fontSize: 12 }}>Invalid flowchart data</Text>
-      </View>
-    );
-  }
-
-  if (!parsed?.nodes?.length) {
-    return (
-      <View style={{ padding: 8 }}>
-        <Text style={{ color: Colors.textTertiary, fontSize: 12 }}>Empty flowchart</Text>
-      </View>
-    );
-  }
-
-  const nodes = parsed.nodes;
-  const edges = parsed.edges ?? [];
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const totalH = nodes.length * V_GAP + NODE_H;
-  const svgW = NODE_W + 60;
+  const mermaidSrc = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, user-scalable=yes">
+      <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      <style>
+        * { margin: 0; padding: 0; }
+        body { 
+          background: transparent;
+          display: flex; 
+          justify-content: center; 
+          align-items: flex-start;
+          min-height: 100%;
+          padding: 8px 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="mermaid" style="width: 100%; max-width: 800px;">
+${escapeHtml(data)}
+      </div>
+      <script>
+        mermaid.initialize({
+          theme: 'dark',
+          startOnLoad: true,
+          securityLevel: 'loose',
+          flowchart: { useMaxWidth: false },
+          themeVariables: {
+            primaryColor: '#2A2118',
+            primaryTextColor: '#e6e0e9',
+            primaryBorderColor: '#D4A574',
+            lineColor: '#D4A574',
+            secondaryColor: '#1d2024',
+            secondaryTextColor: '#cbc4d2',
+            tertiaryColor: '#15171a',
+            tertiaryTextColor: '#948e9c',
+            background: '#141218',
+            mainBkg: '#15171a',
+            nodeBorder: '#D4A574',
+            clusterBkg: '#1d2024',
+            titleColor: '#e6e0e9',
+            edgeLabelBackground: 'transparent',
+          }
+        });
+      </script>
+    </body>
+    </html>
+  `;
 
   return (
-    <View
-      style={{
-        backgroundColor: Colors.surfaceElevated,
-        borderColor: Colors.borderHairline,
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: 12,
-      }}
-    >
-      <Text style={[Typography.uiLabel, { color: Colors.textTertiary, marginBottom: 8 }]}>
-        FLOWCHART
-      </Text>
-      <Svg width={svgW} height={totalH}>
-        {nodes.map((node, i) => {
-          const y = i * V_GAP;
-          return (
-            <React.Fragment key={node.id}>
-              {renderShape(node.shape)}
-              <SvgText
-                x={node.shape === "diamond" ? NODE_W / 2 : 8}
-                y={NODE_H / 2 + 4}
-                fill={Colors.textPrimary}
-                fontSize={11}
-                fontWeight="500"
-                textAnchor={node.shape === "diamond" ? "middle" : "start"}
-              >
-                {node.label.length > 18 ? node.label.slice(0, 17) + "…" : node.label}
-              </SvgText>
-            </React.Fragment>
-          );
-        })}
-        {edges.map((edge, i) => {
-          const fromIdx = nodes.findIndex((n) => n.id === edge.from);
-          const toIdx = nodes.findIndex((n) => n.id === edge.to);
-          if (fromIdx === -1 || toIdx === -1) return null;
-          const x1 = NODE_W / 2;
-          const y1 = fromIdx * V_GAP + NODE_H;
-          const x2 = NODE_W / 2;
-          const y2 = toIdx * V_GAP;
-          return (
-            <React.Fragment key={i}>
-              <Line x1={x1} y1={y1} x2={x2} y2={y2 - 6} stroke={Colors.borderStrong} strokeWidth={1.5} />
-              <Polygon
-                points={`${x2 - 4},${y2 - 8} ${x2 + 4},${y2 - 8} ${x2},${y2}`}
-                fill={Colors.borderStrong}
-              />
-              {edge.label ? (
-                <SvgText x={x1 + 8} y={(y1 + y2) / 2} fill={Colors.textTertiary} fontSize={9}>
-                  {edge.label}
-                </SvgText>
-              ) : null}
-            </React.Fragment>
-          );
-        })}
-      </Svg>
+    <View style={{ minHeight: 300, maxHeight: 600, marginVertical: 12 }}>
+      <WebView
+        source={{ html: mermaidSrc }}
+        style={{ backgroundColor: "transparent" }}
+        scrollEnabled
+        scalesPageToFit
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }

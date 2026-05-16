@@ -53,51 +53,57 @@ function openLink(url: string) {
 const markdownStyles = StyleSheet.create({
   body: {
     ...Typography.bodyProse,
-    lineHeight: 22,
+    lineHeight: 20,
+    includeFontPadding: false,
+    paddingVertical: 0,
     color: Colors.textPrimary,
   },
   paragraph: {
     marginTop: 0,
     marginBottom: 0,
     ...Typography.bodyProse,
-    lineHeight: 22,
+    lineHeight: 20,
+    includeFontPadding: false,
+    paddingVertical: 0,
     color: Colors.textPrimary,
   },
   text: {
     ...Typography.bodyProse,
-    lineHeight: 22,
+    lineHeight: 20,
+    includeFontPadding: false,
+    paddingVertical: 0,
     color: Colors.textPrimary,
   },
   heading1: {
     ...Typography.displayLg,
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: 24,
+    marginBottom: 12,
     color: Colors.textPrimary,
   },
   heading2: {
     fontFamily: Typography.displayLg.fontFamily,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 8,
-    lineHeight: 26,
+    marginTop: 20,
+    marginBottom: 10,
+    lineHeight: 24,
     color: Colors.textPrimary,
   },
   heading3: {
     fontFamily: Typography.uiMedium.fontFamily,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
-    marginTop: 14,
-    marginBottom: 6,
-    lineHeight: 24,
+    marginTop: 16,
+    marginBottom: 8,
+    lineHeight: 22,
     color: Colors.textPrimary,
   },
   heading4: {
     fontFamily: Typography.uiMedium.fontFamily,
     fontSize: 15,
     fontWeight: "700",
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 14,
+    marginBottom: 6,
     lineHeight: 22,
     color: Colors.textSecondary,
   },
@@ -157,13 +163,12 @@ const markdownStyles = StyleSheet.create({
     display: "none",
   },
   blockquote: {
-    borderLeftWidth: 2,
+    borderLeftWidth: 3,
     borderLeftColor: Colors.blockquoteBorder,
     backgroundColor: Colors.blockquoteBackground,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginVertical: 8,
-    borderRadius: 4,
   },
   hr: {
     backgroundColor: Colors.borderHairline,
@@ -256,9 +261,11 @@ function createCustomRules(
       if (lang === "html") {
         const dataType = extractDataAttr(code, "data-type");
         const dataTitle = extractDataAttr(code, "data-title");
+        
         if (dataType === "pdf") {
           return <PdfCard key={node.key} html={code} title={dataTitle} />;
         }
+        
         return <HtmlArtifact key={node.key} html={code} />;
       }
 
@@ -357,44 +364,44 @@ function createCustomRules(
       return <View key={node.key} style={styles.hr} />;
     },
 
-    // Headings (wrap in View for spacing)
+    // Headings (styles control spacing, not wrapper)
     heading1: (node, children, _parent, styles) => (
-      <View key={node.key} style={{ marginTop: 4 }}>
+      <View key={node.key}>
         <Text style={styles.heading1} selectable={Platform.OS !== "ios"}>
           {children}
         </Text>
       </View>
     ),
     heading2: (node, children, _parent, styles) => (
-      <View key={node.key} style={{ marginTop: 4 }}>
+      <View key={node.key}>
         <Text style={styles.heading2} selectable={Platform.OS !== "ios"}>
           {children}
         </Text>
       </View>
     ),
     heading3: (node, children, _parent, styles) => (
-      <View key={node.key} style={{ marginTop: 4 }}>
+      <View key={node.key}>
         <Text style={styles.heading3} selectable={Platform.OS !== "ios"}>
           {children}
         </Text>
       </View>
     ),
     heading4: (node, children, _parent, styles) => (
-      <View key={node.key} style={{ marginTop: 4 }}>
+      <View key={node.key}>
         <Text style={styles.heading4} selectable={Platform.OS !== "ios"}>
           {children}
         </Text>
       </View>
     ),
     heading5: (node, children, _parent, styles) => (
-      <View key={node.key} style={{ marginTop: 4 }}>
+      <View key={node.key}>
         <Text style={styles.heading5} selectable={Platform.OS !== "ios"}>
           {children}
         </Text>
       </View>
     ),
     heading6: (node, children, _parent, styles) => (
-      <View key={node.key} style={{ marginTop: 4 }}>
+      <View key={node.key}>
         <Text style={styles.heading6} selectable={Platform.OS !== "ios"}>
           {children}
         </Text>
