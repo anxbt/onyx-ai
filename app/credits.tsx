@@ -26,7 +26,7 @@ export default function CreditsScreen() {
       return;
     }
 
-    console.log("[credits] Starting top-up, token prefix:", session.accessToken.slice(0, 20) + "...");
+    console.log("[credits] Starting pack top-up, token prefix:", session.accessToken.slice(0, 20) + "...");
     try {
       setIsPaying(true);
       await startRazorpayTopUp({
@@ -39,6 +39,35 @@ export default function CreditsScreen() {
     } catch (nextError) {
       const msg = nextError instanceof Error ? nextError.message : "Could not complete payment";
       console.error("[credits] Top-up failed:", msg);
+      Alert.alert("Payment failed", msg);
+    } finally {
+      setIsPaying(false);
+    }
+  }
+
+  async function handleCustomAmount(amountInr: number) {
+    if (!session?.accessToken) {
+      console.error("[credits] No access token — user not signed in");
+      Alert.alert("Sign in required", "Please sign in before topping up credits.");
+      return;
+    }
+
+    console.log("[credits] Starting custom top-up for ₹" + amountInr);
+    try {
+      setIsPaying(true);
+      await startRazorpayTopUp({
+        accessToken: session.accessToken,
+        email: session.user.email,
+        customTopUp: {
+          amountInr,
+          creditsInr: amountInr, // 1:1 for custom amounts
+        },
+      });
+      setSheetVisible(false);
+      await refresh();
+    } catch (nextError) {
+      const msg = nextError instanceof Error ? nextError.message : "Could not complete payment";
+      console.error("[credits] Custom top-up failed:", msg);
       Alert.alert("Payment failed", msg);
     } finally {
       setIsPaying(false);
@@ -84,6 +113,7 @@ export default function CreditsScreen() {
       <TopUpSheet
         onClose={() => setSheetVisible(false)}
         onSelect={handleTopUp}
+        onCustomAmount={handleCustomAmount}
         packages={packages}
         visible={sheetVisible}
       />

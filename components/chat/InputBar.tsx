@@ -17,13 +17,14 @@ interface InputBarProps {
   onAttach?: () => void;
   onCamera?: () => void;
   onToggleSearch?: () => void;
-  searchMode?: "auto" | "force" | "off";
+  searchMode?: "on" | "off";
   streaming: boolean;
   attachments: Attachment[];
   canSend: boolean;
   creditBalance: number;
   isFreeModel: boolean;
   isSuperuser?: boolean;
+  isProfileLoading?: boolean;
   onTopUp?: () => void;
 }
 
@@ -42,9 +43,10 @@ export function InputBar({
   creditBalance,
   isFreeModel,
   isSuperuser,
+  isProfileLoading,
   onTopUp,
 }: InputBarProps) {
-  if (creditBalance <= 0 && !isFreeModel && !isSuperuser) {
+  if (creditBalance <= 0 && !isFreeModel && !isSuperuser && !isProfileLoading) {
     return <Button label="Top up credits to continue" onPress={onTopUp} />;
   }
 

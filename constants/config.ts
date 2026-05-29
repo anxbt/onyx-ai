@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  appName: "OnyxAI",
+  appName: "Closed AI",
   fallbackMonthlySavedUsd: 0,
   fallbackMonthlySpendUsd: 0.14,
   defaultCreditBalance: 0,

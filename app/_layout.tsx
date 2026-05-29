@@ -25,7 +25,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 
 export const unstable_settings = {
   initialRouteName: "index",
@@ -34,10 +34,18 @@ export const unstable_settings = {
 SystemUI.setBackgroundColorAsync(Colors.background).catch(() => {});
 
 export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootShell />
+    </AuthProvider>
+  );
+}
+
+function RootShell() {
   const { session, isLoading } = useAuth();
   const segments = useSegments();
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     InterTight_400Regular,
     InterTight_500Medium,
     InterTight_600SemiBold,
@@ -53,7 +61,7 @@ export default function RootLayout() {
     SystemUI.setBackgroundColorAsync(Colors.background).catch(() => {});
   }, []);
 
-  if (isLoading || !fontsLoaded) {
+  if (isLoading || (!fontsLoaded && !fontError)) {
     return (
       <View
         style={{

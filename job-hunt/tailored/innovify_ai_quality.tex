@@ -1,0 +1,58 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\pagenumbering{gobble}
+\setlist[itemize]{leftmargin=*, topsep=2pt, itemsep=1pt}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries Anubrat Sahoo}\\
+\small \href{mailto:anubrat23@gmail.com}{anubrat23@gmail.com}\;|\;\href{https://linkedin.com/in/anubrat-sahoo}{linkedin.com/in/anubrat-sahoo}\;|\;\href{https://github.com/anxbt}{github.com/anxbt}
+\end{center}
+
+{\large\bfseries Applied AI Engineering (Evaluation-minded) | TypeScript/Node.js}\\
+\small I build agentic AI applications and the infrastructure around them (tool-calling, safe execution, data plumbing). I also care about correctness: reproducible test cases, deterministic harnesses where possible, and security-oriented constraints for non-deterministic systems.
+
+\vspace{6pt}
+{\large\bfseries Education}
+\vspace{2pt}
+\textbf{Siksha ‘O’ Anusandhana (SOA) University}, Bhubaneswar, Odisha \hfill \textit{2023 -- 2027}\\
+B.Tech in Computer Science and Engineering
+
+\vspace{6pt}
+{\large\bfseries Relevant Work}
+\vspace{2pt}
+\textbf{Freelance Full-Stack Engineer} (Remote) \hfill \textit{2024 -- Present}\\
+\begin{itemize}
+  \item Built and shipped production web apps with RBAC, webhook validation, and API design focused on reliability and observability.
+  \item Deployed Dockerized services on AWS; used structured logging and metrics to debug issues quickly and prevent regressions.
+\end{itemize}
+
+\vspace{6pt}
+{\large\bfseries Applied AI / Testing-Relevant Projects}
+\vspace{2pt}
+\textbf{SandboxAI} — TypeScript, Node.js, Docker, OpenRouter API, PostgreSQL, React\\
+\begin{itemize}
+  \item Built an agent loop with explicit tool-call logs and failure recovery (reads stderr, rewrites code) — enabling repeatable debugging and evaluation of agent behavior.
+  \item Implemented a secure execution sandbox (network isolation, timeouts, CPU/memory limits) to reduce prompt-injection blast radius and data exfiltration risk.
+  \item Implemented intent classification (LOOKUP / COMPUTATION / AMBIGUOUS) and validated behavior over 50k-row datasets, returning structured outputs (charts) to UI.
+\end{itemize}
+
+\textbf{Multi-Tenant RBAC Platform} — PostgreSQL, Express, Next.js, Clerk\\
+\begin{itemize}
+  \item Implemented webhook-driven workflows and role/permission models with strong tenant isolation — useful for guarding LLM features and limiting data exposure.
+\end{itemize}
+
+\vspace{6pt}
+{\large\bfseries Skills}
+\vspace{2pt}
+\textbf{Automation:} Playwright (comfortable), browser + API testing patterns, load/perf testing fundamentals\\
+\textbf{Backend:} Node.js, Express, REST APIs, PostgreSQL, Webhooks, AuthN/AuthZ, RBAC\\
+\textbf{AI Testing Concepts:} golden datasets, regression checks, hallucination/relevance/latency measurements (framework-agnostic)\\
+\textbf{Security:} prompt injection awareness, sandboxing/isolation, least-privilege design\\
+\textbf{Languages:} TypeScript, JavaScript, SQL
+\end{document}
+

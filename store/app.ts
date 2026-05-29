@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 import { DEFAULT_MODEL_ID, MODELS } from "@/constants/models";
 
-const STORE_KEY = "onyxai-store";
+const STORE_KEY = "closedai-store";
 
 interface AppStore {
   activeModelId: string;

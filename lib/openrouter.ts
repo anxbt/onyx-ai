@@ -1,5 +1,7 @@
+import { fetch as expoFetch } from "expo/fetch";
+
 import { getModelConfig } from "@/lib/models";
-import type { Attachment, Message } from "@/types";
+import type { Attachment, Message, Source } from "@/types";
 
 function getWorkerUrl() {
   return (process.env.EXPO_PUBLIC_WORKER_URL || "http://localhost:8787").replace(/\/+$/, "");
@@ -42,6 +44,7 @@ export async function chatFromWorker({
 
 export interface StreamCallbacks {
   onContent: (content: string) => void;
+  onSources?: (sources: Source[]) => void;
   onDone: (result: StreamDoneResult) => void;
   onError: (error: Error) => void;
 }
@@ -84,21 +87,36 @@ export function streamChatFromWorker({
   const abortController = new AbortController();
   const linkedSignal = signal ?? abortController.signal;
 
+  const modelSupportsImages = (model.modality ?? "text").includes("image");
+
   const buildMessageContent = (
     message: Message,
   ): string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> => {
-    if (message.role === "user" && attachments?.length) {
-      const parts: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
-        { type: "text", text: message.content },
-      ];
-      for (const att of attachments) {
-        if (att.type === "image" && att.remoteUrl) {
-          parts.push({ type: "image_url", image_url: { url: att.remoteUrl } });
-        }
-      }
-      return parts;
+    const msgAttachments = message.attachments?.length ? message.attachments : null;
+    if (message.role !== "user" || !msgAttachments) {
+      return message.content;
     }
-    return message.content;
+
+    const imageAttachments = msgAttachments.filter(
+      (att) => att.type === "image" && att.remoteUrl,
+    );
+
+    if (!imageAttachments.length) {
+      return message.content;
+    }
+
+    if (!modelSupportsImages) {
+      const names = imageAttachments.map((a) => a.name).join(", ");
+      return `${message.content}\n\n[Note: ${imageAttachments.length} image attachment(s) (${names}) are in this turn but the current model does not support vision. Ask the user to switch to a vision-capable model to inspect them.]`;
+    }
+
+    const parts: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
+      { type: "text", text: message.content },
+    ];
+    for (const att of imageAttachments) {
+      parts.push({ type: "image_url", image_url: { url: att.remoteUrl as string } });
+    }
+    return parts;
   };
 
   const workerMessages = messages.map((message) => ({
@@ -106,7 +124,7 @@ export function streamChatFromWorker({
     content: buildMessageContent(message),
   }));
 
-  fetch(`${workerUrl}/chat`, {
+  expoFetch(`${workerUrl}/chat`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -120,7 +138,7 @@ export function streamChatFromWorker({
       enableSearch,
       forceSearch,
     }),
-    signal: linkedSignal,
+    signal: linkedSignal as never,
   })
     .then(async (res) => {
       if (!res.ok) {
@@ -143,6 +161,11 @@ export function streamChatFromWorker({
           if (!data) continue;
           try {
             const parsed = JSON.parse(data);
+
+            if (parsed.type === "sources" && Array.isArray(parsed.sources)) {
+              callbacks.onSources?.(parsed.sources as Source[]);
+              continue;
+            }
 
             if (parsed.done) {
               callbacks.onDone({

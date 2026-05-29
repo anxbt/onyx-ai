@@ -45,8 +45,73 @@ export async function handleCreatePaymentOrder(c: Context<HonoEnv>) {
   const env = c.env;
   const userId = c.get("userId");
 
-  const body = (await c.req.json().catch(() => null)) as { packId?: keyof typeof TOP_UP_PACKS } | null;
-  if (!body?.packId || !TOP_UP_PACKS[body.packId]) {
+  const body = (await c.req.json().catch(() => null)) as {
+    packId?: keyof typeof TOP_UP_PACKS;
+    amount?: number;
+  } | null;
+
+  if (!body) {
+    return json({ error: "invalid_request" }, 400);
+  }
+
+  // Custom amount path (1:1 credits, no bonus)
+  if (body.amount != null) {
+    const amountInr = Math.floor(body.amount);
+    if (amountInr < 10) {
+      return json({ error: "minimum_amount", detail: "Minimum top-up is ₹10" }, 400);
+    }
+    if (amountInr > 10000) {
+      return json({ error: "maximum_amount", detail: "Maximum top-up is ₹10,000" }, 400);
+    }
+
+    let credentials: ReturnType<typeof requireRazorpay>;
+    try {
+      credentials = requireRazorpay(env);
+    } catch {
+      return json({ error: "missing_razorpay_credentials" }, 501);
+    }
+
+    const response = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${credentials.keyId}:${credentials.keySecret}`)}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: amountInr * 100,
+        currency: "INR",
+        receipt: `${userId}:custom:${Date.now()}`.slice(0, 40),
+        notes: {
+          userId,
+          customAmount: "true",
+          creditsInr: String(amountInr),
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      return json({ error: "razorpay_order_failed", detail: await response.text() }, 502);
+    }
+
+    const order = (await response.json()) as { id: string; amount: number; currency: string };
+    await insertTopUpOrder(env, {
+      userId,
+      packId: "custom",
+      amountInr,
+      creditsInr: amountInr, // 1:1 for custom amounts
+      razorpayOrderId: order.id,
+    });
+
+    return json({
+      keyId: credentials.keyId,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    });
+  }
+
+  // Fixed pack path (with bonus credits)
+  if (!body.packId || !TOP_UP_PACKS[body.packId]) {
     return json({ error: "invalid_pack" }, 400);
   }
 

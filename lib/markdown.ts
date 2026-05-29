@@ -104,3 +104,32 @@ export function streamingSafeContent(content?: string): string {
   if (!content) return "";
   return safeTruncateForStreaming(content);
 }
+
+/**
+ * Strip the leading <!--type:foo--> marker that the model is instructed to emit.
+ * Returns the response-type label and clean content (without the comment).
+ */
+export type ResponseType = "answer" | "analysis" | "tutorial" | "creative";
+
+export function extractResponseType(content: string): {
+  type: ResponseType | null;
+  cleanContent: string;
+} {
+  if (!content) return { type: null, cleanContent: "" };
+
+  // Fully streamed marker — extract type and strip
+  const m = content.match(/^\s*<!--\s*type\s*:\s*(answer|analysis|tutorial|creative)\s*-->/i);
+  if (m) {
+    const type = m[1].toLowerCase() as ResponseType;
+    const cleanContent = content.slice(m[0].length).replace(/^\s+/, "");
+    return { type, cleanContent };
+  }
+
+  // Mid-stream: marker is being written but not yet closed.
+  // Hide the partial comment until "-->" arrives so streaming text appears smoothly.
+  if (/^\s*<!--\s*t?y?p?e?\s*:?\s*(answer|analysis|tutorial|creative)?\s*-?-?>?$/i.test(content)) {
+    return { type: null, cleanContent: "" };
+  }
+
+  return { type: null, cleanContent: content };
+}

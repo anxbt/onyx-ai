@@ -1,6 +1,17 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 import { supabase, supabaseUrl } from "@/lib/supabase";
 import type { Attachment } from "@/types";
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = global.atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
 
 const IMAGE_BUCKET = "chat-images";
 const FILE_BUCKET = "chat-files";
@@ -151,16 +162,31 @@ export async function uploadToStorage(
 
   try {
     const uriToUpload = attachment.type === "image" ? await resizeIfNeeded(attachment.uri) : attachment.uri;
-    const response = await fetch(uriToUpload);
-    if (!response.ok) {
-      console.warn("Failed to fetch local file:", response.status);
-      return null;
+
+    let body: Uint8Array | Blob;
+    if (Platform.OS === "web") {
+      const response = await fetch(uriToUpload);
+      if (!response.ok) {
+        console.warn("Failed to fetch local file:", response.status);
+        return null;
+      }
+      body = await response.blob();
+    } else {
+      const base64 = await FileSystem.readAsStringAsync(uriToUpload, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      if (!base64 || base64.length === 0) {
+        console.warn("Empty file body after base64 read");
+        return null;
+      }
+      body = base64ToUint8Array(base64);
+      if (body.byteLength === 0) {
+        console.warn("Decoded zero-byte payload");
+        return null;
+      }
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const blob = new Blob([arrayBuffer], { type: attachment.mimeType });
-
-    const { data, error } = await supabase.storage.from(bucket).upload(storagePath, blob, {
+    const { data, error } = await supabase.storage.from(bucket).upload(storagePath, body, {
       contentType: attachment.mimeType,
       upsert: false,
     });

@@ -3,16 +3,16 @@ import type { ModelConfig, TopUpPack } from "@/types";
 
 export const MODELS: ModelConfig[] = [
   {
-    id: "qwen/qwen3-coder:free",
-    displayName: "Qwen3 Coder",
-    provider: "Alibaba",
+    id: "deepseek/deepseek-v4-flash:free",
+    displayName: "DeepSeek V4 Flash",
+    provider: "DeepSeek",
     modality: "text",
     supportsReasoning: false,
     isFree: true,
     inputCostPerMToken: 0,
     outputCostPerMToken: 0,
-    contextWindow: 262000,
-    maxOutput: 65536,
+    contextWindow: 163840,
+    maxOutput: 16384,
     description: "Free. Good for onboarding and quick tasks.",
   },
   {
@@ -108,7 +108,7 @@ export const MODELS: ModelConfig[] = [
   },
 ];
 
-export const FREE_MODEL_ID = "qwen/qwen3-coder:free";
+export const FREE_MODEL_ID = "deepseek/deepseek-v4-flash:free";
 export const DEFAULT_MODEL_ID = FREE_MODEL_ID;
 
 export const TOP_UP_PACKS: TopUpPack[] = [

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
@@ -80,7 +80,7 @@ export default function SettingsScreen() {
           alignItems: "center",
           gap: Spacing.md,
           paddingHorizontal: Spacing.mobileMargin,
-          paddingTop: Math.max(insets.top, Spacing.lg),
+          paddingTop: insets.top + Spacing.md,
           paddingBottom: Spacing.md,
           borderBottomWidth: 1,
           borderBottomColor: Colors.borderHairline,
@@ -110,15 +110,49 @@ export default function SettingsScreen() {
               borderColor: Colors.borderHairline,
               borderRadius: Spacing.radius.container,
               padding: Spacing.lg,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: Spacing.md,
             }}
           >
-            <Text style={[Typography.bodyProseBold, { color: Colors.textPrimary }]}>
-              {session?.user.email ?? "Preview account"}
-            </Text>
-            <Text style={[Typography.uiLabel, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
-              ₹{(profile?.creditBalance ?? 0).toFixed(2)} balance
-              {profile?.isSuperuser ? " · Superuser" : ""}
-            </Text>
+            {session?.user?.avatarUrl ? (
+              <Image
+                source={{ uri: session.user.avatarUrl }}
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: Colors.surfaceElevated,
+                  borderWidth: 1,
+                  borderColor: Colors.borderHairline,
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: Colors.surfaceElevated,
+                  borderWidth: 1,
+                  borderColor: Colors.borderHairline,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons color={Colors.textSecondary} name="person" size={26} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.bodyProseBold, { color: Colors.textPrimary }]}>
+                {session?.user.displayName ?? session?.user.email ?? "Preview account"}
+              </Text>
+              <Text style={[Typography.uiLabel, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
+                {session?.user.displayName && session?.user.email ? `${session.user.email} · ` : ""}
+                ₹{(profile?.creditBalance ?? 0).toFixed(2)} balance
+                {profile?.isSuperuser ? " · Superuser" : ""}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -188,7 +222,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Text style={[Typography.bodyProse, { color: Colors.textSecondary, opacity: 0.8 }]}>
-              Signing out will end your current session. You will need to authenticate again to continue using OnyxAI.
+              Signing out will end your current session. You will need to authenticate again to continue using Closed AI.
             </Text>
             <Pressable
               onPress={async () => {

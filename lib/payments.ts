@@ -1,4 +1,4 @@
-import type { TopUpPack } from "@/types";
+import type { CustomTopUp, TopUpPack } from "@/types";
 
 interface RazorpaySuccess {
   razorpay_order_id: string;
@@ -36,21 +36,53 @@ async function loadRazorpayCheckout() {
   });
 }
 
+function buildPaymentPayload(
+  pack: TopUpPack | null,
+  customTopUp: CustomTopUp | null
+): { packId?: string; amount?: number } {
+  if (customTopUp) {
+    return { amount: customTopUp.amountInr };
+  }
+  if (pack) {
+    return { packId: pack.id };
+  }
+  throw new Error("No payment details provided");
+}
+
+function buildDescription(
+  pack: TopUpPack | null,
+  customTopUp: CustomTopUp | null
+): string {
+  if (customTopUp) {
+    return `₹${customTopUp.amountInr} credit top-up`;
+  }
+  if (pack) {
+    return `${pack.label} credit top-up (₹${pack.amountInr})`;
+  }
+  return "Credit top-up";
+}
+
 export async function startRazorpayTopUp({
   accessToken,
   email,
   pack,
+  customTopUp,
 }: {
   accessToken: string;
   email?: string;
-  pack: TopUpPack;
+  pack?: TopUpPack;
+  customTopUp?: CustomTopUp;
 }) {
+  const paymentPack = pack || null;
+  const paymentCustom = customTopUp || null;
+
   console.log("[payments] Loading Razorpay checkout...");
   await loadRazorpayCheckout();
   console.log("[payments] Razorpay checkout loaded");
 
   const url = `${workerBaseUrl()}/payments/create-order`;
-  console.log("[payments] POST", url, { packId: pack.id });
+  const payload = buildPaymentPayload(paymentPack, paymentCustom);
+  console.log("[payments] POST", url, payload);
 
   const createResponse = await fetch(url, {
     method: "POST",
@@ -58,7 +90,7 @@ export async function startRazorpayTopUp({
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ packId: pack.id }),
+    body: JSON.stringify(payload),
   });
 
   if (!createResponse.ok) {
@@ -76,7 +108,7 @@ export async function startRazorpayTopUp({
       amount: order.amount,
       currency: order.currency,
       name: "OnyxAI",
-      description: `${pack.label} credit top-up`,
+      description: buildDescription(paymentPack, paymentCustom),
       order_id: order.orderId,
       prefill: { email },
       theme: { color: "#7C3AED" },

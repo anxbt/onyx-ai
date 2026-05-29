@@ -2,3 +2,113 @@ npx eas-cli@latest build --platform android --profile preview --clear-cache
 
 
 onyxai://auth/callback
+
+reviewer@closedai.test
+ReviewTest@2026
+
+
+
+
+npx eas build --platform android --profile preview --local
+npx eas build --platform android --profile production --local   
+
+
+
+
+# One-time: generate the android/ folder from app.json
+npx expo prebuild --platform android
+
+# Build APK (debug — fast, unsigned)
+cd android && ./gradlew assembleRelease
+# Output: android/app/build/outputs/apk/release/app-release.apk
+
+# Build AAB for Play Store
+./gradlew bundleRelease
+# Output: android/app/build/outputs/bundle/release/app-release.aab
+
+
+
+
+Now — the SQL Changes
+Here's everything you need. Run these in order.
+
+1. Give ₹15 welcome credit on signup (and log it as a transaction)
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public
+AS $$
+DECLARE
+  welcome_credit DECIMAL(10,4) := 15.0000;
+BEGIN
+  -- Create profile with welcome credit pre-loaded
+  INSERT INTO public.user_profiles (id, display_name, credit_balance)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    welcome_credit
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Log the welcome bonus as a credit transaction (visible in user's history)
+  INSERT INTO public.credit_transactions (user_id, amount, type)
+  VALUES (NEW.id, welcome_credit, 'top_up')
+  ON CONFLICT DO NOTHING;
+
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_user failed: %', SQLERRM;
+    RETURN NEW;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO supabase_auth_admin;
+2. Monitor monthly OpenRouter spend (run this anytime)
+
+SELECT 
+  date_trunc('month', created_at) AS month,
+  SUM(provider_total_cost_usd) AS openrouter_cost_usd,
+  SUM(charged_total_cost_inr) AS user_charged_inr,
+  COUNT(*) AS messages,
+  COUNT(DISTINCT user_id) AS active_users
+FROM usage_events
+WHERE created_at >= now() - interval '6 months'
+GROUP BY 1
+ORDER BY 1 DESC;
+3. Find which models are eating your budget
+
+SELECT 
+  model,
+  COUNT(*) AS messages,
+  SUM(provider_total_cost_usd) AS cost_usd,
+  ROUND(AVG(provider_total_cost_usd)::numeric, 5) AS avg_cost_per_msg_usd
+FROM usage_events
+WHERE created_at >= now() - interval '30 days'
+GROUP BY model
+ORDER BY cost_usd DESC;
+4. See how much free credit you've given out vs used
+
+SELECT 
+  COUNT(*) AS total_users,
+  SUM(15.0000) AS total_welcome_credits_given_inr,
+  SUM(15.0000 - credit_balance) AS welcome_credits_consumed_inr,
+  AVG(15.0000 - credit_balance) AS avg_consumed_per_user
+FROM user_profiles
+WHERE NOT is_superuser;
+5. Find heavy users (your most engaged audience)
+
+SELECT 
+  up.display_name,
+  au.email,
+  up.credit_balance AS remaining_inr,
+  COUNT(ue.id) AS messages_last_30d,
+  SUM(ue.provider_total_cost_usd) AS cost_to_you_usd
+FROM user_profiles up
+JOIN auth.users au ON au.id = up.id
+LEFT JOIN usage_events ue ON ue.user_id = up.id AND ue.created_at >= now() - interval '30 days'
+GROUP BY up.id, up.display_name, au.email, up.credit_balance
+ORDER BY messages_last_30d DESC NULLS LAST
+LIMIT 20;

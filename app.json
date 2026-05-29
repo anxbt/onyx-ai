@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "OnyxAI",
+    "name": "Closed AI",
     "slug": "onyxai",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
-    "scheme": "onyxai",
+    "scheme": "closedai",
     "userInterfaceStyle": "dark",
     "android": {
-      "package": "com.anxbt.onyxai",
+      "package": "com.anxbt.closedai",
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -20,6 +20,7 @@
     "ios": {
       "supportsTablet": false
     },
+    "runtimeVersion": "1.0.1",
     "web": {
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
@@ -42,6 +43,10 @@
       "eas": {
         "projectId": "bcd5c811-7275-47ae-a8f4-6c40184abac0"
       }
+    },
+    "owner": "anxbrt",
+    "updates": {
+      "url": "https://u.expo.dev/bcd5c811-7275-47ae-a8f4-6c40184abac0"
     }
   }
 }

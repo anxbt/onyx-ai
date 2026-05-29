@@ -1,6 +1,7 @@
-import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -30,13 +31,32 @@ const LEDGER_ROWS = [
 export default function SignInScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signInWithEmail } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleGoogleSignIn() {
     try {
       setIsSubmitting(true);
       await signInWithGoogle();
+      router.replace("/");
+    } catch (error) {
+      Alert.alert("Sign-in failed", error instanceof Error ? error.message : "Could not sign in");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleEmailSignIn() {
+    if (!email.trim() || !password) {
+      Alert.alert("Missing info", "Please enter both email and password.");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      await signInWithEmail(email, password);
       router.replace("/");
     } catch (error) {
       Alert.alert("Sign-in failed", error instanceof Error ? error.message : "Could not sign in");
@@ -257,6 +277,112 @@ export default function SignInScreen() {
                   </Text>
                 </View>
               </View>
+              {/* Email/password form */}
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email"
+                  placeholderTextColor={SCREEN_COLORS.textMuted}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  style={{
+                    height: 48,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: SCREEN_COLORS.outline,
+                    backgroundColor: SCREEN_COLORS.surfaceLow,
+                    color: SCREEN_COLORS.textPrimary,
+                    paddingHorizontal: 14,
+                    fontSize: 15,
+                  }}
+                />
+                <View style={{ position: "relative" }}>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Password"
+                    placeholderTextColor={SCREEN_COLORS.textMuted}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    style={{
+                      height: 48,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: SCREEN_COLORS.outline,
+                      backgroundColor: SCREEN_COLORS.surfaceLow,
+                      color: SCREEN_COLORS.textPrimary,
+                      paddingHorizontal: 14,
+                      paddingRight: 44,
+                      fontSize: 15,
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={8}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: 0,
+                      bottom: 0,
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={SCREEN_COLORS.textMuted}
+                    />
+                  </Pressable>
+                </View>
+                <Pressable
+                  onPress={handleEmailSignIn}
+                  disabled={isSubmitting}
+                  style={({ pressed }) => [
+                    {
+                      height: 48,
+                      borderRadius: 12,
+                      backgroundColor: SCREEN_COLORS.surfaceHigh,
+                      borderWidth: 1,
+                      borderColor: SCREEN_COLORS.outline,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
+                    pressed ? { transform: [{ scale: 0.98 }] } : null,
+                    isSubmitting ? { opacity: 0.7 } : null,
+                  ]}
+                >
+                  <Text style={{ color: SCREEN_COLORS.textPrimary, fontSize: 14, fontWeight: "600" }}>
+                    {isSubmitting ? "Signing in..." : "Sign in with Email"}
+                  </Text>
+                </Pressable>
+                <Link href="/auth/sign-up" asChild>
+                  <Pressable>
+                    <Text
+                      style={{
+                        color: SCREEN_COLORS.textSecondary,
+                        fontSize: 12,
+                        textAlign: "center",
+                        marginTop: 4,
+                      }}
+                    >
+                      No account? <Text style={{ color: SCREEN_COLORS.moss, fontWeight: "600" }}>Create one</Text>
+                    </Text>
+                  </Pressable>
+                </Link>
+              </View>
+
+              {/* Divider */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: SCREEN_COLORS.outline }} />
+                <Text style={{ color: SCREEN_COLORS.textMuted, fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase" }}>
+                  Or
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: SCREEN_COLORS.outline }} />
+              </View>
+
               <Pressable
                 onPress={handleGoogleSignIn}
                 disabled={isSubmitting}

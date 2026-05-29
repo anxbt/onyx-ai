@@ -26,15 +26,24 @@ export default function ChatScreen() {
   const setActiveModelId = useAppStore((state) => state.setActiveModelId);
   const activeConversationId = useAppStore((state) => state.activeConversationId);
   const setActiveConversationId = useAppStore((state) => state.setActiveConversationId);
-  const { session, profile } = useAuth();
+  const { session, profile, isProfileLoading } = useAuth();
   const creditBalance = profile?.creditBalance ?? 0;
   const isSuperuser = profile?.isSuperuser ?? false;
   const [draft, setDraft] = useState("");
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [searchMode, setSearchMode] = useState<"auto" | "force" | "off">("auto");
-  const { messages, streaming, streamingContent, error, sendMessage, stopStreaming } = useChat({
+  const [searchMode, setSearchMode] = useState<"off" | "on">("off");
+  const {
+    messages,
+    streaming,
+    streamingContent,
+    error,
+    sendMessage,
+    stopStreaming,
+    regenerateLastAssistant,
+    editUserMessage,
+  } = useChat({
     conversationId: activeConversationId,
     modelId: activeModelId,
     session,
@@ -63,7 +72,7 @@ export default function ChatScreen() {
   };
 
   const toggleSearch = () => {
-    setSearchMode((prev) => (prev === "auto" ? "force" : prev === "force" ? "off" : "auto"));
+    setSearchMode((prev) => (prev === "on" ? "off" : "on"));
   };
 
   const handleSend = async () => {
@@ -85,8 +94,8 @@ export default function ChatScreen() {
     }
 
     sendMessage(nextDraft, uploaded, {
-      enableSearch: searchMode !== "off",
-      forceSearch: searchMode === "force",
+      enableSearch: searchMode === "on",
+      forceSearch: false,
     });
   };
 
@@ -98,7 +107,7 @@ export default function ChatScreen() {
       <View
         style={{
           paddingHorizontal: Spacing.mobileMargin,
-          paddingTop: Math.max(insets.top, Spacing.xl),
+          paddingTop: insets.top + Spacing.md,
           paddingBottom: Spacing.md,
           flexDirection: "row",
           alignItems: "center",
@@ -153,6 +162,9 @@ export default function ChatScreen() {
               activeConversationId={activeConversationId ?? "new"}
               messages={messages}
               streamingContent={streamingContent}
+              onEdit={editUserMessage}
+              onRegenerate={regenerateLastAssistant}
+              canMutate={!streaming}
             />
           </View>
           <InputBar
@@ -162,6 +174,7 @@ export default function ChatScreen() {
             draft={draft}
             isFreeModel={activeModel.isFree}
             isSuperuser={isSuperuser}
+            isProfileLoading={isProfileLoading}
             onChangeDraft={setDraft}
             onAttach={handleAttach}
             onCamera={handleCamera}

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
 import { Spacing } from "@/constants/spacing";
@@ -19,7 +20,8 @@ export function Drawer({ visible, onClose }: DrawerProps) {
   const { session, profile } = useAuth();
   const activeConversationId = useAppStore((state) => state.activeConversationId);
   const setActiveConversationId = useAppStore((state) => state.setActiveConversationId);
-  const { conversations, searchQuery, setSearchQuery } = useConversations(session?.user.id);
+  const { conversations, searchQuery, setSearchQuery, isLoading, error } = useConversations(session?.user.id);
+  const insets = useSafeAreaInsets();
 
   if (!visible) return null;
 
@@ -43,33 +45,50 @@ export function Drawer({ visible, onClose }: DrawerProps) {
           backgroundColor: Colors.background,
           borderRightWidth: 1,
           borderRightColor: Colors.borderHairline,
-          padding: Spacing.lg,
+          paddingTop: insets.top + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.lg,
+          paddingLeft: Spacing.lg,
+          paddingRight: Spacing.lg,
           gap: Spacing.lg,
         }}
       >
         {/* Profile header */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.md }}>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: Colors.surfaceElevated,
-                borderWidth: 1,
-                borderColor: Colors.borderHairline,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons color={Colors.textSecondary} name="person" size={20} />
-            </View>
+            {session?.user?.avatarUrl ? (
+              <Image
+                source={{ uri: session.user.avatarUrl }}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: Colors.surfaceElevated,
+                  borderWidth: 1,
+                  borderColor: Colors.borderHairline,
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: Colors.surfaceElevated,
+                  borderWidth: 1,
+                  borderColor: Colors.borderHairline,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons color={Colors.textSecondary} name="person" size={20} />
+              </View>
+            )}
             <View>
               <Text style={[Typography.uiMedium, { color: Colors.textPrimary }]} numberOfLines={1}>
-                {profile?.displayName ?? session?.user?.email?.split("@")[0] ?? "User"}
+                {session?.user?.displayName ?? profile?.displayName ?? session?.user?.email?.split("@")[0] ?? "User"}
               </Text>
               <Text style={[Typography.uiLabel, { color: Colors.textTertiary, fontSize: 10 }]}>
-                ₹{(profile?.creditBalance ?? 0).toFixed(0)} credits
+                {profile?.isSuperuser ? "Superuser" : `₹${(profile?.creditBalance ?? 0).toFixed(0)} credits`}
               </Text>
             </View>
           </View>
@@ -128,6 +147,21 @@ export function Drawer({ visible, onClose }: DrawerProps) {
           </Text>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             <View style={{ gap: Spacing.xs }}>
+              {isLoading ? (
+                <Text style={[Typography.uiLabel, { color: Colors.textTertiary, padding: Spacing.md }]}>
+                  Loading history...
+                </Text>
+              ) : null}
+              {error ? (
+                <Text style={[Typography.uiLabel, { color: Colors.danger, padding: Spacing.md }]}>
+                  {error}
+                </Text>
+              ) : null}
+              {!isLoading && !error && conversations.length === 0 ? (
+                <Text style={[Typography.uiLabel, { color: Colors.textTertiary, padding: Spacing.md }]}>
+                  No conversations yet
+                </Text>
+              ) : null}
               {conversations.map((conv) => {
                 const isActive = conv.id === activeConversationId;
                 return (

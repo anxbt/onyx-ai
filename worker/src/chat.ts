@@ -114,13 +114,67 @@ function buildSystemContext(
   return parts.join("\n\n");
 }
 
+function userWantsPdf(text: string): boolean {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return /\b(make|create|generate|write|export|give\s+me|build|produce|draft|prepare)\s+(a|an|the)?\s*(pdf|document|report|memo|letter|whitepaper|essay|proposal|one[- ]pager)\b/.test(t)
+      || /\b(as\s+a|in\s+a|formatted\s+as\s+a)\s+(pdf|document|report|memo|letter|proposal)\b/.test(t)
+      || /\b(download(?:able)?|printable|export\s+to)\s+(pdf|document|report)\b/.test(t);
+}
+
+function getResponseTypeInstructions(): string {
+  return `Begin EVERY response with a single hidden HTML comment tagging the response type. Use exactly one of:
+<!--type:answer--> for direct Q&A and factual lookups
+<!--type:analysis--> for evaluations, comparisons, breakdowns
+<!--type:tutorial--> for step-by-step instructions
+<!--type:creative--> for writing, brainstorming, ideation
+
+After the comment, write the response normally. Do not mention the comment to the user.`;
+}
+
 function getArtifactInstructions(): string {
-  return `Generate styled HTML in \`\`\`html code fences for visual explanations.
+  return `The user explicitly asked for a PDF/document. Generate the content as semantic HTML inside a \`\`\`html code fence with a root <div data-type="pdf" data-title="Title">. Do NOT generate Markdown outside the HTML fence for the document body.
 
-For PDFs: add data-type="pdf" data-title="Title" to root <div>.
-For diagrams: add data-type="artifact" to root <div>.
+DESIGN SYSTEM — STRICT RULES:
+1. ONLY use the CSS classes listed below. NEVER write inline style attributes. NEVER use <style> tags inside the HTML.
+2. Colors: ONLY #111 (near-black for headings) and #2563EB (deep blue accent). NO purple, violet, magenta, or neon. NO gradients.
+3. Background: White (#FFF) for the document body. NO dark backgrounds on print documents.
+4. Typography: Use serif for body text (class="body") and sans-serif for headings (classes h1-h6). NO monospace fonts outside code blocks.
+5. NO rounded cards, bordered boxes, or shadow containers. Use plain headings and paragraphs. For separating sections, use a horizontal rule (<hr>) or extra whitespace, NOT visual boxes.
+6. NO emojis in headings or document content.
+7. Layout: Left-aligned body text. NO center-aligned body text.
+8. Code blocks: Only when genuinely needed. Use <pre><code> with class="code-block".
 
-Use dark bg #0A0A0A, text #ECECED, accent #7C3AED. Left-aligned, max 3 colors, solid only.`;
+PERMITTED CLASSES — USE THEM PURPOSEFULLY:
+- <div class="doc-header"> — document title block (contains h1 + subtitle + meta). Always present at top.
+- <span class="meta"> — date, author, version inside doc-header. Example: <span class="meta">May 2026 · Closed AI</span>
+- <h1> through <h6> — headings (NEVER center-aligned). Use H1 once for title, H2 for sections, H3 for subsections.
+- <p class="lead"> — ALWAYS the first paragraph after the title. Opens the doc with the thesis in 2-3 sentences. Renders larger with a slightly heavier weight. Use EXACTLY ONCE per document.
+- <p class="body"> — all standard body paragraphs.
+- <p class="caption"> — placed under tables or figure headings; small gray text.
+- <blockquote class="pull"> — for ONE striking takeaway per major section. Max 1-2 per document total. Renders as an indented callout with accent border.
+- <span class="highlight"> — for inline emphasis of a proper noun or key term on first introduction. Max 1-2 per page equivalent. Renders in accent color, bold.
+- <ul class="list"> / <ol class="list"> with <li class="item"> — for parallel lists.
+- <table class="data-table"> — for tabular data. First row uses <th> for headers.
+- <pre class="code-block"><code> — only for actual code or commands.
+- <hr> — section dividers between major sections. NOT after every heading.
+- <div class="two-col"> — wraps a section that contains naturally parallel content (definitions, glossary, FAQ pairs, comparison points). NEVER force-wrap narrative prose. Only use when there is genuinely two-column-friendly content.
+
+STRUCTURAL GUIDANCE:
+- 1-2 page document: skip TOC, skip subsections, lead with .lead paragraph, 2-4 main sections.
+- 3-5 page document: include H2 sections with H3 subsections where needed. Optional TOC.
+- 5+ pages: lead with an executive summary section before the body.
+- Use <hr> between major sections (after H2 closes), NOT after every heading.
+
+ANTI-AI WRITING RULES:
+- NEVER start sections with "In today's world..." or "In conclusion..."
+- NEVER use words: delve, leverage, robust, comprehensive, cutting-edge, paradigm, synergy, holistic, actionable, transformative.
+- NEVER use filler phrases: "It is important to note that...", "As mentioned previously...", "It goes without saying..."
+- Write directly. One idea per sentence. Vary sentence length.
+- Some sections can be one paragraph; others can be several. Do NOT force uniform length.
+- Use concrete examples and specific numbers instead of vague qualifiers.
+
+For non-PDF artifacts (diagrams, charts, etc.): add data-type="artifact" to root <div>.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -166,10 +220,11 @@ export async function handleChat(c: Context<HonoEnv>) {
       );
     }
 
-    // Wave 5: search augmentation (Tavily)
+    // Wave 5: search augmentation (Tavily) — explicit opt-in only
     const enableSearch = body.enableSearch as boolean | undefined;
     const forceSearch = body.forceSearch as boolean | undefined;
-    if (enableSearch !== false && env.TAVILY_API_KEY) {
+    let tavilySources: Array<{ title: string; url: string; snippet: string }> = [];
+    if (enableSearch === true && env.TAVILY_API_KEY) {
       const lastUserContent = getLastUserContent(messages);
       let shouldSearch = forceSearch === true;
       if (!shouldSearch && lastUserContent) {
@@ -189,7 +244,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               query: lastUserContent,
               search_depth: "advanced",
               include_answer: true,
-              max_results: 2,
+              max_results: 4,
             }),
           });
           if (tavilyRes.ok) {
@@ -200,11 +255,16 @@ export async function handleChat(c: Context<HonoEnv>) {
             const results = tavilyData.results ?? [];
             const answer = tavilyData.answer ?? "";
             if (results.length) {
+              tavilySources = results.map((r) => ({
+                title: r.title,
+                url: r.url,
+                snippet: r.content.slice(0, 200),
+              }));
               const searchCtx =
                 "[Web search results]\n" +
                 (answer ? `Summary: ${answer}\n\n` : "") +
-                results.map((r) => `Title: ${r.title}\nSource: ${r.url}\nContent: ${r.content.slice(0, 500)}`).join("\n\n") +
-                "\n\nUse these sources if relevant to the user's question. Cite them as [1], [2], etc.";
+                results.map((r, i) => `[${i + 1}] ${r.title}\nSource: ${r.url}\nContent: ${r.content.slice(0, 500)}`).join("\n\n") +
+                "\n\nUse these sources to answer. Cite them inline as [1], [2], etc. If the sources do not contain the answer, say so plainly — do NOT fabricate numbers, prices, or current events.";
               messages = [{ role: "system", content: searchCtx }, ...messages];
             }
           }
@@ -216,8 +276,15 @@ export async function handleChat(c: Context<HonoEnv>) {
 
     const convId = body.conversationId ?? null;
     let finalMessages = messages;
-    const artifactInstructions = getArtifactInstructions();
-    finalMessages = [{ role: "system", content: artifactInstructions }, ...finalMessages];
+
+    // Response-type marker: always prepend so client can render a "ANSWER / ANALYSIS / TUTORIAL / CREATIVE" badge
+    finalMessages = [{ role: "system", content: getResponseTypeInstructions() }, ...finalMessages];
+
+    // PDF artifact instructions: only inject when user explicitly asks for a document
+    const lastUserContent = getLastUserContent(messages);
+    if (userWantsPdf(lastUserContent)) {
+      finalMessages = [{ role: "system", content: getArtifactInstructions() }, ...finalMessages];
+    }
     if (convId) {
       const summaries = await fetchConversationSummaries(env, convId);
       const systemCtx = buildSystemContext(summaries);
@@ -282,6 +349,13 @@ export async function handleChat(c: Context<HonoEnv>) {
 
     const writeStream = (async () => {
       try {
+        // Emit citation sources BEFORE streaming model tokens so client can render Perplexity-style cards
+        if (tavilySources.length) {
+          await writer.write(
+            encoder.encode(`data: ${JSON.stringify({ type: "sources", sources: tavilySources })}\n\n`),
+          );
+        }
+
         const reader = orResponse.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -367,9 +441,12 @@ export async function handleChat(c: Context<HonoEnv>) {
               p_savings_vs_frontier_usd: savingsVsFrontierUsd,
               p_idempotency_key: idempotencyKey,
             });
+            const previewClean = fullContent
+              .replace(/^\s*<!--\s*type\s*:\s*[a-z]+\s*-->\s*/i, "")
+              .trim();
             await updateConversationAfterAssistant(env, {
               conversationId: convId,
-              preview: fullContent.slice(0, 160),
+              preview: previewClean.slice(0, 160),
               tokenCount: totalTokens,
               model: model.id,
             });

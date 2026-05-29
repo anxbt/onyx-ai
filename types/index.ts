@@ -22,6 +22,12 @@ export interface Attachment {
   sizeBytes?: number;
 }
 
+export interface Source {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -30,6 +36,7 @@ export interface Message {
   model?: string;
   hasAttachment?: boolean;
   attachments?: Attachment[];
+  sources?: Source[];
   createdAt: string;
 }
 
@@ -91,6 +98,11 @@ export interface TopUpPack {
   bonusLabel: string;
 }
 
+export interface CustomTopUp {
+  amountInr: number;
+  creditsInr: number;
+}
+
 export interface ModelCatalogEntry extends ModelConfig {
   appInputCostPerMToken: number;
   appOutputCostPerMToken: number;
@@ -100,6 +112,8 @@ export interface ModelCatalogEntry extends ModelConfig {
 export interface SessionUser {
   id: string;
   email?: string;
+  displayName?: string;
+  avatarUrl?: string;
 }
 
 export interface SessionLike {

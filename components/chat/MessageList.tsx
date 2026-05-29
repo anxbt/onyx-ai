@@ -8,9 +8,27 @@ interface MessageListProps {
   messages: Message[];
   streamingContent?: string;
   activeConversationId: string;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onRegenerate?: () => void;
+  canMutate?: boolean;
 }
 
-export function MessageList({ messages, streamingContent, activeConversationId }: MessageListProps) {
+export function MessageList({
+  messages,
+  streamingContent,
+  activeConversationId,
+  onEdit,
+  onRegenerate,
+  canMutate,
+}: MessageListProps) {
+  let lastAssistantId: string | null = null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant") {
+      lastAssistantId = messages[i].id;
+      break;
+    }
+  }
+
   return (
     <ScrollView
       contentContainerStyle={{ gap: Spacing.sectionGap, paddingBottom: Spacing.lg }}
@@ -18,7 +36,14 @@ export function MessageList({ messages, streamingContent, activeConversationId }
       showsVerticalScrollIndicator={false}
     >
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble
+          key={message.id}
+          message={message}
+          onEdit={onEdit}
+          onRegenerate={onRegenerate}
+          isLastAssistant={!streamingContent && message.id === lastAssistantId}
+          canMutate={canMutate}
+        />
       ))}
       {streamingContent ? (
         <View>

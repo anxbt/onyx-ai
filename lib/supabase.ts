@@ -3,6 +3,7 @@ import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
+import { Platform } from "react-native";
 
 import type {
   Conversation,
@@ -17,10 +18,30 @@ export const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 export const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 export const hasSupabaseEnv = Boolean(supabaseUrl && supabaseAnonKey);
 
+// Web storage adapter for Supabase auth
+const webStorage = {
+  getItem: (key: string) => {
+    if (typeof window === "undefined") return null;
+    return Promise.resolve(window.localStorage.getItem(key));
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window === "undefined") return Promise.resolve();
+    window.localStorage.setItem(key, value);
+    return Promise.resolve();
+  },
+  removeItem: (key: string) => {
+    if (typeof window === "undefined") return Promise.resolve();
+    window.localStorage.removeItem(key);
+    return Promise.resolve();
+  },
+};
+
+const isWeb = Platform.OS === "web";
+
 export const supabase: SupabaseClient | null = hasSupabaseEnv
   ? createClient(supabaseUrl as string, supabaseAnonKey as string, {
       auth: {
-        storage: AsyncStorage,
+        storage: isWeb ? webStorage : AsyncStorage,
         persistSession: true,
         autoRefreshToken: true,
         flowType: "pkce",
@@ -72,16 +93,40 @@ export async function fetchProfile(userId: string): Promise<UserProfile | null> 
   };
 }
 
-export async function ensureUserProfile(userId: string, email?: string): Promise<UserProfile> {
+export async function ensureUserProfile(
+  userId: string,
+  userInfo?: { email?: string; displayName?: string | null },
+): Promise<UserProfile> {
   const existing = await fetchProfile(userId);
+  const emailPrefix = userInfo?.email ? userInfo.email.split("@")[0] : null;
+  const displayName = userInfo?.displayName || emailPrefix;
+
   if (existing) {
+    if (
+      displayName &&
+      (!existing.displayName || existing.displayName === emailPrefix)
+    ) {
+      const client = ensureSupabase();
+      const { error } = await client
+        .from("user_profiles")
+        .update({ display_name: displayName })
+        .eq("id", userId);
+
+      if (!error) {
+        return {
+          ...existing,
+          displayName,
+        };
+      }
+    }
+
     return existing;
   }
 
   const client = ensureSupabase();
   const { error } = await client.from("user_profiles").insert({
     id: userId,
-    display_name: email ? email.split("@")[0] : null,
+    display_name: displayName,
   });
 
   if (error) {
@@ -133,7 +178,7 @@ export async function fetchMessagesForConversation(conversationId: string): Prom
   const client = ensureSupabase();
   const { data, error } = await client
     .from("messages")
-    .select("id, conversation_id, role, content, model, has_attachment, created_at")
+    .select("id, conversation_id, role, content, model, has_attachment, attachments, created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
 
@@ -148,6 +193,9 @@ export async function fetchMessagesForConversation(conversationId: string): Prom
     content: row.content,
     model: row.model ?? undefined,
     hasAttachment: row.has_attachment ?? false,
+    attachments: Array.isArray(row.attachments)
+      ? (row.attachments as Message["attachments"])
+      : undefined,
     createdAt: row.created_at,
   }));
 }
@@ -275,8 +323,20 @@ export async function insertUserMessage(
   conversationId: string,
   content: string,
   hasAttachment: boolean,
+  attachments?: Message["attachments"],
 ) {
   const client = ensureSupabase();
+  const persistable = attachments?.length
+    ? attachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        type: att.type,
+        remoteUrl: att.remoteUrl,
+        mimeType: att.mimeType,
+        sizeBytes: att.sizeBytes,
+      }))
+    : null;
+
   const { data, error } = await client
     .from("messages")
     .insert({
@@ -285,8 +345,9 @@ export async function insertUserMessage(
       role: "user",
       content,
       has_attachment: hasAttachment,
+      attachments: persistable,
     })
-    .select("id, conversation_id, role, content, model, has_attachment, created_at")
+    .select("id, conversation_id, role, content, model, has_attachment, attachments, created_at")
     .single();
 
   if (error) {
@@ -300,8 +361,39 @@ export async function insertUserMessage(
     content: data.content,
     model: data.model ?? undefined,
     hasAttachment: data.has_attachment ?? false,
+    attachments: Array.isArray(data.attachments)
+      ? (data.attachments as Message["attachments"])
+      : undefined,
     createdAt: data.created_at,
   };
+}
+
+export async function deleteMessagesAfter(
+  conversationId: string,
+  afterCreatedAt: string,
+  includeBoundary = false,
+) {
+  const client = ensureSupabase();
+  const builder = client.from("messages").delete().eq("conversation_id", conversationId);
+  const { error } = await (includeBoundary
+    ? builder.gte("created_at", afterCreatedAt)
+    : builder.gt("created_at", afterCreatedAt));
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateMessageContent(messageId: string, content: string) {
+  const client = ensureSupabase();
+  const { error } = await client
+    .from("messages")
+    .update({ content })
+    .eq("id", messageId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function updateConversationSummary(

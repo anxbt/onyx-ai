@@ -1,0 +1,65 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\pagenumbering{gobble}
+\setlist[itemize]{leftmargin=*, topsep=2pt, itemsep=1pt}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries Anubrat Sahoo}\\
+\small \href{mailto:anubrat23@gmail.com}{anubrat23@gmail.com}\;|\;\href{https://linkedin.com/in/anubrat-sahoo}{linkedin.com/in/anubrat-sahoo}\;|\;\href{https://github.com/anxbt}{github.com/anxbt}
+\end{center}
+
+{\large\bfseries Applied AI / Full-Stack (TypeScript, Node.js, Next.js)}\\
+\small I build AI-powered products end-to-end: backend APIs, streaming UX, vector search plumbing, and secure execution pipelines. Focus: applied AI engineering (LLM integration, RAG-like retrieval patterns, evaluation hooks) — not core model training.
+
+\vspace{6pt}
+{\large\bfseries Education}
+\vspace{2pt}
+\textbf{Siksha ‘O’ Anusandhana (SOA) University}, Bhubaneswar, Odisha \hfill \textit{2023 -- 2027}\\
+B.Tech in Computer Science and Engineering
+
+\vspace{6pt}
+{\large\bfseries Experience}
+\vspace{2pt}
+\textbf{Freelance Full-Stack Engineer} (Remote) \hfill \textit{2024 -- Present}\\
+\begin{itemize}
+  \item Owned full-stack delivery from backend APIs to frontend interfaces; designed predictable data flows and clean REST APIs.
+  \item Built authentication \& authorization (RBAC), integrated payments (webhooks + validation), and shipped production features with analytics instrumentation (GA4, Meta Pixel).
+  \item Deployed containerized services with Docker on AWS (S3, RDS, Fargate); implemented CI/CD practices for reliable releases.
+\end{itemize}
+
+\vspace{6pt}
+{\large\bfseries Selected Projects (Most Relevant)}
+\vspace{2pt}
+\textbf{SandboxAI} — TypeScript, Node.js, Docker, OpenRouter API, PostgreSQL, React\\
+\begin{itemize}
+  \item Built an LLM agent loop from scratch (raw tool-calling, manual message history) with a self-correcting execution cycle that reads stderr and rewrites code on failure.
+  \item Engineered a secure Docker sandbox for executing LLM-generated code: isolated Python containers with strict resource limits, network isolation, and hard timeouts.
+  \item Implemented intent routing (LOOKUP / COMPUTATION / AMBIGUOUS) via LLM classification; validated on 50k-row datasets and returned base64 charts to a React UI.
+\end{itemize}
+
+\textbf{Multi-Tenant RBAC Platform} — PostgreSQL, Express, Next.js, Clerk\\
+\begin{itemize}
+  \item Designed a multi-tenant system (org isolation, roles, permissions) and built admin workflows; integrated Clerk auth + webhook-driven lifecycle handling.
+  \item Modeled data with PostgreSQL and shipped maintainable APIs with clear boundaries and predictable performance characteristics.
+\end{itemize}
+
+\textbf{AI Resume Readiness Platform} — PERN Stack, TypeScript, AWS\\
+\begin{itemize}
+  \item Built APIs that aggregate GitHub + resume signals; implemented scoring logic and deployed services on AWS Fargate with PostgreSQL and S3.
+\end{itemize}
+
+\vspace{6pt}
+{\large\bfseries Skills}
+\vspace{2pt}
+\textbf{Languages:} TypeScript, JavaScript, SQL (PostgreSQL)\\
+\textbf{Frontend:} React, Next.js, Tailwind CSS\\
+\textbf{Backend:} Node.js, Express, REST APIs, Webhooks, RBAC/AuthN/AuthZ\\
+\textbf{AI / Applied:} LLM API integration (OpenRouter), tool-calling agents, retrieval/vector-search plumbing basics, evaluation hooks\\
+\textbf{Cloud/DevOps:} Docker, AWS (S3, RDS, Fargate), CI/CD
+\end{document}
+

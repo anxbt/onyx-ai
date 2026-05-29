@@ -22,6 +22,7 @@ import { Flowchart } from "@/components/artifacts/Flowchart";
 import { Chart } from "@/components/artifacts/Chart";
 import { HtmlArtifact } from "@/components/artifacts/HtmlArtifact";
 import { PdfCard } from "@/components/artifacts/PdfCard";
+import type { Source } from "@/types";
 
 function extractDataAttr(html: string, attr: string): string | undefined {
   const re = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`, "i");
@@ -32,6 +33,7 @@ function extractDataAttr(html: string, attr: string): string | undefined {
 interface MarkdownRendererProps {
   content: string;
   isStreaming?: boolean;
+  sources?: Source[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,7 +242,8 @@ const markdownStyles = StyleSheet.create({
 /*  Custom render rules                                                 */
 /* ------------------------------------------------------------------ */
 function createCustomRules(
-  placeholders: ReturnType<typeof extractMath>["placeholders"]
+  placeholders: ReturnType<typeof extractMath>["placeholders"],
+  sources?: Source[],
 ): RenderRules {
   return {
     // Code blocks (fenced) — includes artifact detection
@@ -307,10 +310,50 @@ function createCustomRules(
       );
     },
 
-    // Math placeholders (split mixed text)
+    // Text with math placeholders + inline citation pills
     text: (node, _children, _parent, styles) => {
       const text = node.content || "";
       const parts = text.split(/(__MATH_\d+__)/g);
+
+      const renderWithCitations = (segment: string, baseKey: string) => {
+        // Split on [1], [2], [3] inline citation markers
+        const tokens = segment.split(/(\[\d+\])/g);
+        if (tokens.length === 1) {
+          return (
+            <Text key={baseKey} style={styles.text}>
+              {segment}
+            </Text>
+          );
+        }
+        return tokens.map((token, j) => {
+          const m = token.match(/^\[(\d+)\]$/);
+          if (m) {
+            const n = Number.parseInt(m[1], 10);
+            const source = sources?.[n - 1];
+            if (source?.url) {
+              return (
+                <Text
+                  key={`${baseKey}-cite-${j}`}
+                  onPress={() => openLink(source.url)}
+                  style={{
+                    color: Colors.accent,
+                    fontWeight: "700",
+                    fontSize: 13,
+                  }}
+                >
+                  {` [${n}]`.trimStart()}
+                </Text>
+              );
+            }
+          }
+          return (
+            <Text key={`${baseKey}-tok-${j}`} style={styles.text}>
+              {token}
+            </Text>
+          );
+        });
+      };
+
       if (parts.length === 1 && !isMathPlaceholder(text)) {
         return (
           <Text
@@ -318,7 +361,7 @@ function createCustomRules(
             style={styles.text}
             selectable={Platform.OS !== "ios"}
           >
-            {text}
+            {renderWithCitations(text, `${node.key}-c`)}
           </Text>
         );
       }
@@ -342,7 +385,7 @@ function createCustomRules(
             }
             return (
               <Text key={`${node.key}-txt-${i}`} style={styles.text}>
-                {part}
+                {renderWithCitations(part, `${node.key}-${i}`)}
               </Text>
             );
           })}
@@ -471,7 +514,7 @@ function createCustomRules(
 /* ------------------------------------------------------------------ */
 /*  Main component                                                      */
 /* ------------------------------------------------------------------ */
-export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, isStreaming, sources }: MarkdownRendererProps) {
   const { cleaned, placeholders } = useMemo(() => extractMath(content), [content]);
 
   const safeContent = useMemo(() => {
@@ -481,10 +524,10 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
     return cleaned;
   }, [cleaned, isStreaming]);
 
-  const rules = useMemo(() => createCustomRules(placeholders), [placeholders]);
+  const rules = useMemo(() => createCustomRules(placeholders, sources), [placeholders, sources]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View>
       <Markdown style={markdownStyles} rules={rules}>
         {safeContent}
       </Markdown>

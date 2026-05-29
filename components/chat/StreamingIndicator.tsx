@@ -1,24 +1,33 @@
-import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, View } from "react-native";
 
 import { Colors } from "@/constants/colors";
-import { Typography } from "@/constants/typography";
 
 export function StreamingIndicator() {
-  const [dots, setDots] = useState(1);
+  const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setDots((d) => (d % 3) + 1);
-    }, 400);
-    return () => clearInterval(interval);
-  }, []);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.2, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-      <Text style={[Typography.uiLabel, { color: Colors.accent }]}>
-        {"•".repeat(dots)}
-      </Text>
+    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, marginLeft: 1 }}>
+      <Animated.View
+        style={{
+          width: 8,
+          height: 16,
+          backgroundColor: Colors.accent,
+          borderRadius: 1,
+          opacity,
+        }}
+      />
     </View>
   );
 }
