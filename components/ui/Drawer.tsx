@@ -17,10 +17,17 @@ interface DrawerProps {
 
 export function Drawer({ visible, onClose }: DrawerProps) {
   const router = useRouter();
-  const { session, profile } = useAuth();
+  const { session, profile, isLoading: authLoading } = useAuth();
   const activeConversationId = useAppStore((state) => state.activeConversationId);
   const setActiveConversationId = useAppStore((state) => state.setActiveConversationId);
-  const { conversations, searchQuery, setSearchQuery, isLoading, error } = useConversations(session?.user.id);
+  const {
+    conversations,
+    searchQuery,
+    setSearchQuery,
+    isLoading,
+    error,
+    refetch,
+  } = useConversations(session?.user.id, !authLoading);
   const insets = useSafeAreaInsets();
 
   if (!visible) return null;
@@ -147,17 +154,25 @@ export function Drawer({ visible, onClose }: DrawerProps) {
           </Text>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             <View style={{ gap: Spacing.xs }}>
-              {isLoading ? (
+              {authLoading ? (
                 <Text style={[Typography.uiLabel, { color: Colors.textTertiary, padding: Spacing.md }]}>
-                  Loading history...
+                  Signing in…
                 </Text>
-              ) : null}
-              {error ? (
-                <Text style={[Typography.uiLabel, { color: Colors.danger, padding: Spacing.md }]}>
-                  {error}
+              ) : isLoading ? (
+                <Text style={[Typography.uiLabel, { color: Colors.textTertiary, padding: Spacing.md }]}>
+                  Loading history…
                 </Text>
-              ) : null}
-              {!isLoading && !error && conversations.length === 0 ? (
+              ) : error ? (
+                <Pressable
+                  onPress={refetch}
+                  style={{ padding: Spacing.md }}
+                  hitSlop={8}
+                >
+                  <Text style={[Typography.uiLabel, { color: Colors.danger }]}>
+                    {error}
+                  </Text>
+                </Pressable>
+              ) : conversations.length === 0 ? (
                 <Text style={[Typography.uiLabel, { color: Colors.textTertiary, padding: Spacing.md }]}>
                   No conversations yet
                 </Text>

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { estimateTokens } from "@/lib/tokens";
 import { streamChatFromWorker, summarizeConversation } from "@/lib/openrouter";
 import { getEmbedding, extractMemoryFacts } from "@/lib/memory";
+import { useAppStore } from "@/store/app";
+import { getModelConfig } from "@/lib/models";
 import {
   createConversation,
   deleteMessagesAfter,
@@ -12,7 +14,30 @@ import {
   updateConversationSummary,
   updateMessageContent,
 } from "@/lib/supabase";
-import type { Attachment, Conversation, Message, SessionLike, Source } from "@/types";
+import type {
+  Attachment,
+  Conversation,
+  Message,
+  ReasoningEffortLevel,
+  SessionLike,
+  Source,
+} from "@/types";
+
+// Resolve the current reasoning effort for `modelId` based on user preference
+// and the model's reasoningConfig. Returns:
+//   - The user's stored choice if set
+//   - The model's default if not set
+//   - undefined for models with kind === "always-on" (worker omits the param)
+//   - undefined for models without a reasoningConfig
+function resolveReasoningEffort(
+  modelId: string,
+): ReasoningEffortLevel | undefined {
+  const model = getModelConfig(modelId);
+  const config = model.reasoningConfig;
+  if (!config || config.kind === "always-on") return undefined;
+  const stored = useAppStore.getState().reasoningEffortByModel[modelId];
+  return stored ?? config.default;
+}
 
 export function useChat({
   conversationId,
@@ -29,10 +54,18 @@ export function useChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  // Accumulated reasoning trace for the in-flight assistant turn. Cleared at
+  // the start of each new turn; bundled into the saved Message on onDone.
+  const [streamingReasoning, setStreamingReasoning] = useState("");
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
   const sawContentRef = useRef(false);
   const polyfillTimerRef = useRef<number | null>(null);
+  // Conversation IDs created locally by sendMessage. The load-messages effect
+  // skips fetch for these IDs once, then removes them — otherwise the effect's
+  // fetch returns [] for a brand-new conversation and clobbers the just-sent
+  // user message.
+  const internallyCreatedConvIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     return () => {
@@ -40,11 +73,40 @@ export function useChat({
     };
   }, []);
 
+  // When the user switches models mid-stream, abort the old stream silently.
+  // The suppression in lib/openrouter.ts (`linkedSignal.aborted` check) absorbs
+  // the resulting AbortError instead of surfacing it as a red banner.
+  useEffect(() => {
+    if (abortRef.current) {
+      abortRef.current();
+      abortRef.current = null;
+    }
+  }, [modelId]);
+
+  // Defense-in-depth: if any layer below still surfaces a cancellation-shaped
+  // error, drop it here instead of showing a red banner.
+  const handleStreamError = (err: Error) => {
+    const message = err.message ?? "";
+    if (/aborted|cancel(?:l)?ed/i.test(message)) {
+      setStreaming(false);
+      setStreamingContent("");
+      return;
+    }
+    setError(message || "Could not send message");
+    setStreaming(false);
+    setStreamingContent("");
+  };
+
   useEffect(() => {
     setActiveConversationId(conversationId);
 
     if (!conversationId) {
       setMessages([]);
+      return;
+    }
+
+    if (internallyCreatedConvIdsRef.current.has(conversationId)) {
+      internallyCreatedConvIdsRef.current.delete(conversationId);
       return;
     }
 
@@ -77,6 +139,10 @@ export function useChat({
     if (!nextConversationId) {
       const conversation = await createConversation(session.user.id, modelId);
       nextConversationId = conversation.id;
+      // Mark this ID as internally-created BEFORE setActiveConversationId so the
+      // load-messages effect's guard fires on the very next render and skips the
+      // empty-list clobber.
+      internallyCreatedConvIdsRef.current.add(conversation.id);
       setActiveConversationId(conversation.id);
       onConversationCreated?.(conversation);
     }
@@ -104,6 +170,7 @@ export function useChat({
     setMessages(allMessages);
     setStreaming(true);
     setStreamingContent("");
+    setStreamingReasoning("");
 
     // Wave 4: embed user message for future semantic retrieval (background)
     getEmbedding(trimmed, token).then((embedding) => {
@@ -131,6 +198,7 @@ export function useChat({
     }));
 
     let finalContent = "";
+    let finalReasoning = "";
     let capturedSources: Source[] = [];
 
     const cancel = streamChatFromWorker({
@@ -141,11 +209,16 @@ export function useChat({
       attachments: attachments.length > 0 ? attachments : undefined,
       enableSearch: search?.enableSearch,
       forceSearch: search?.forceSearch,
+      reasoningEffort: resolveReasoningEffort(modelId),
       callbacks: {
         onContent: (accumulated) => {
           sawContentRef.current = true;
           finalContent = accumulated;
           setStreamingContent(accumulated);
+        },
+        onReasoning: (accumulated) => {
+          finalReasoning = accumulated;
+          setStreamingReasoning(accumulated);
         },
         onSources: (sources) => {
           capturedSources = sources;
@@ -162,12 +235,14 @@ export function useChat({
               content: contentToPush || "",
               model: modelId,
               sources: capturedSources.length ? capturedSources : undefined,
+              reasoning: finalReasoning || undefined,
               createdAt: new Date().toISOString(),
             };
 
             setMessages((current) => [...current, assistantMessage]);
             setStreaming(false);
             setStreamingContent("");
+            setStreamingReasoning("");
           };
 
           if (performPolyfill) {
@@ -197,12 +272,14 @@ export function useChat({
               content: finalContent || "",
               model: modelId,
               sources: capturedSources.length ? capturedSources : undefined,
+              reasoning: finalReasoning || undefined,
               createdAt: new Date().toISOString(),
             };
 
             setMessages((current) => [...current, assistantMessage]);
             setStreaming(false);
             setStreamingContent("");
+            setStreamingReasoning("");
           }
 
           const assistantContent = finalContent || "";
@@ -222,11 +299,7 @@ export function useChat({
             }).catch(() => {});
           }
         },
-        onError: (err) => {
-          setError(err.message || "Could not send message");
-          setStreaming(false);
-          setStreamingContent("");
-        },
+        onError: handleStreamError,
       },
     });
 
@@ -249,10 +322,12 @@ export function useChat({
     }));
 
     let finalContent = "";
+    let finalReasoning = "";
     let capturedSources: Source[] = [];
     sawContentRef.current = false;
     setStreaming(true);
     setStreamingContent("");
+    setStreamingReasoning("");
     setError(null);
 
     const cancel = streamChatFromWorker({
@@ -263,11 +338,16 @@ export function useChat({
       attachments: options?.attachments?.length ? options.attachments : undefined,
       enableSearch: options?.search?.enableSearch,
       forceSearch: options?.search?.forceSearch,
+      reasoningEffort: resolveReasoningEffort(modelId),
       callbacks: {
         onContent: (accumulated) => {
           sawContentRef.current = true;
           finalContent = accumulated;
           setStreamingContent(accumulated);
+        },
+        onReasoning: (accumulated) => {
+          finalReasoning = accumulated;
+          setStreamingReasoning(accumulated);
         },
         onSources: (sources) => {
           capturedSources = sources;
@@ -280,11 +360,13 @@ export function useChat({
             content: finalContent || "",
             model: modelId,
             sources: capturedSources.length ? capturedSources : undefined,
+            reasoning: finalReasoning || undefined,
             createdAt: new Date().toISOString(),
           };
           setMessages((current) => [...current, assistantMessage]);
           setStreaming(false);
           setStreamingContent("");
+          setStreamingReasoning("");
 
           const lastUser = [...history].reverse().find((m) => m.role === "user");
           updateConversationSummary(
@@ -294,11 +376,7 @@ export function useChat({
             estimateTokens([...requestMessages, { content: finalContent }].map((m) => m.content).join(" ")),
           ).catch(() => {});
         },
-        onError: (err) => {
-          setError(err.message || "Could not send message");
-          setStreaming(false);
-          setStreamingContent("");
-        },
+        onError: handleStreamError,
       },
     });
 
@@ -366,6 +444,7 @@ export function useChat({
     setMessages,
     streaming,
     streamingContent,
+    streamingReasoning,
     error,
     activeConversationId,
     sendMessage,

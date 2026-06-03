@@ -6,6 +6,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { InputBar } from "@/components/chat/InputBar";
 import { MessageList } from "@/components/chat/MessageList";
+import { NewChatGreeting } from "@/components/chat/NewChatGreeting";
+import {
+  ReasoningEffortSheet,
+  getReasoningChipLabel,
+} from "@/components/chat/ReasoningEffortSheet";
 import { ModelBadge } from "@/components/model/ModelBadge";
 import { ModelSelector } from "@/components/model/ModelSelector";
 import { Drawer } from "@/components/ui/Drawer";
@@ -32,12 +37,16 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState("");
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [reasoningSheetVisible, setReasoningSheetVisible] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [searchMode, setSearchMode] = useState<"off" | "on">("off");
+  const reasoningEffortByModel = useAppStore((s) => s.reasoningEffortByModel);
+  const setReasoningEffort = useAppStore((s) => s.setReasoningEffort);
   const {
     messages,
     streaming,
     streamingContent,
+    streamingReasoning,
     error,
     sendMessage,
     stopStreaming,
@@ -158,14 +167,28 @@ export default function ChatScreen() {
           ) : null}
 
           <View style={{ flex: 1 }}>
-            <MessageList
-              activeConversationId={activeConversationId ?? "new"}
-              messages={messages}
-              streamingContent={streamingContent}
-              onEdit={editUserMessage}
-              onRegenerate={regenerateLastAssistant}
-              canMutate={!streaming}
-            />
+            {messages.length === 0 &&
+            !streamingContent &&
+            !activeConversationId ? (
+              <NewChatGreeting
+                name={
+                  profile?.displayName ??
+                  session?.user.email?.split("@")[0] ??
+                  null
+                }
+                onPickPrompt={(text) => setDraft(text)}
+              />
+            ) : (
+              <MessageList
+                activeConversationId={activeConversationId ?? "new"}
+                messages={messages}
+                streamingContent={streamingContent}
+                streamingReasoning={streamingReasoning}
+                onEdit={editUserMessage}
+                onRegenerate={regenerateLastAssistant}
+                canMutate={!streaming}
+              />
+            )}
           </View>
           <InputBar
             attachments={attachments}
@@ -180,6 +203,11 @@ export default function ChatScreen() {
             onCamera={handleCamera}
             onToggleSearch={toggleSearch}
             searchMode={searchMode}
+            reasoningLabel={getReasoningChipLabel(
+              activeModel,
+              reasoningEffortByModel[activeModelId],
+            )}
+            onOpenReasoningSheet={() => setReasoningSheetVisible(true)}
             onSend={handleSend}
             onStop={stopStreaming}
             onTopUp={() => router.push("/credits")}
@@ -187,6 +215,14 @@ export default function ChatScreen() {
           />
         </View>
       </KeyboardAvoidingView>
+
+      <ReasoningEffortSheet
+        visible={reasoningSheetVisible}
+        onClose={() => setReasoningSheetVisible(false)}
+        model={activeModel}
+        currentLevel={reasoningEffortByModel[activeModelId]}
+        onSelect={(level) => setReasoningEffort(activeModelId, level)}
+      />
 
       <ModelSelector
         currentModelId={activeModelId}

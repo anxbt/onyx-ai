@@ -18,6 +18,7 @@ import {
 import { Redirect, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
+import * as Updates from "expo-updates";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -59,6 +60,29 @@ function RootShell() {
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(Colors.background).catch(() => {});
+  }, []);
+
+  // Auto-apply OTA updates on cold start. Without this, expo-updates'
+  // default flow downloads a new bundle in the background and only applies
+  // it on the SECOND cold start — causing the "I shipped an OTA but nothing
+  // changed" gotcha. With this, the first cold start after publishing fetches
+  // and reloads in one go. ~1–2s splash flash when an update is available;
+  // no-op when there isn't one. Skipped in Expo Go / dev (`Updates.isEnabled`
+  // is false there).
+  useEffect(() => {
+    if (!Updates.isEnabled) return;
+    (async () => {
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (result.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // No network, server down, etc. — fall through silently and use the
+        // currently-installed bundle. The next cold start will retry.
+      }
+    })();
   }, []);
 
   if (isLoading || (!fontsLoaded && !fontError)) {

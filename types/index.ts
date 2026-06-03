@@ -1,3 +1,24 @@
+export type ReasoningEffortLevel =
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
+// How a model exposes reasoning controls. OpenRouter normalizes input across
+// providers; the variability is in (a) which effort levels each model accepts
+// vs `none` only, and (b) whether the model reasons unconditionally.
+export type ReasoningConfig =
+  | {
+      kind: "effort";
+      levels: ReasoningEffortLevel[]; // levels the user can pick in the UI
+      default: ReasoningEffortLevel;
+    }
+  | {
+      kind: "always-on"; // model reasons on every call; no knob to expose
+    };
+
 export interface ModelConfig {
   id: string;
   displayName: string;
@@ -10,6 +31,7 @@ export interface ModelConfig {
   contextWindow: number;
   maxOutput: number;
   description: string;
+  reasoningConfig?: ReasoningConfig;
 }
 
 export interface Attachment {
@@ -37,6 +59,12 @@ export interface Message {
   hasAttachment?: boolean;
   attachments?: Attachment[];
   sources?: Source[];
+  // Optional chain-of-thought trace produced by reasoning models (DeepSeek
+  // V4 Flash with effort, Kimi K2 Thinking always-on, Qwen3 thinking, etc.).
+  // OpenRouter normalizes this from `delta.reasoning_details[*].text` during
+  // streaming. Persisted separately from `content` so it can be shown in a
+  // collapsible panel without polluting message previews / summaries.
+  reasoning?: string;
   createdAt: string;
 }
 

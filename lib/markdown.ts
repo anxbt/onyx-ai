@@ -10,12 +10,28 @@ export interface MathPlaceholder {
   display: boolean; // true = block $$…$$, false = inline $…$
 }
 
-const MATH_PLACEHOLDER_PREFIX = "__MATH_";
-const MATH_PLACEHOLDER_SUFFIX = "__";
+// Placeholder format is bare `MATH_<n>` (no surrounding underscores). The
+// previous format `__MATH_N__` collided with CommonMark's bold syntax
+// (`__foo__` → `<strong>foo</strong>`), so the markdown parser destroyed
+// placeholders before the renderer could substitute math content back in —
+// the user saw literal "MATH_8" rendered as bold text. Bare `MATH_N` survives
+// markdown parsing because word-internal underscores don't trigger emphasis
+// per CommonMark.
+const MATH_PLACEHOLDER_PREFIX = "MATH_";
+const MATH_PLACEHOLDER_SUFFIX = "";
+// Single source of truth for the regex used by the renderer's split.
+export const MATH_PLACEHOLDER_SPLIT_REGEX = /(MATH_\d+)/g;
 
 /**
  * Replace math blocks with non-rendering placeholders before markdown parsing,
  * then restore them as plain styled text after.
+ *
+ * Recognized delimiters (applied in order so AMS delimiters don't survive
+ * into the dollar-sign pass):
+ *   1. AMS display: \[ ... \]
+ *   2. AMS inline:  \( ... \)
+ *   3. Block: $$...$$
+ *   4. Inline: $...$
  */
 export function extractMath(content: string): {
   cleaned: string;
@@ -23,37 +39,59 @@ export function extractMath(content: string): {
 } {
   const placeholders: MathPlaceholder[] = [];
 
+  const makePlaceholder = (tex: string, display: boolean) => {
+    const id = `${MATH_PLACEHOLDER_PREFIX}${placeholders.length}${MATH_PLACEHOLDER_SUFFIX}`;
+    placeholders.push({ id, raw: tex.trim(), display });
+    return id;
+  };
+
+  // AMS display math first: \[ ... \]
+  let cleaned = content.replace(/\\\[([\s\S]*?)\\\]/g, (_match, tex) =>
+    makePlaceholder(tex, true),
+  );
+
+  // AMS inline math: \( ... \)
+  cleaned = cleaned.replace(/\\\(([\s\S]*?)\\\)/g, (_match, tex) =>
+    makePlaceholder(tex, false),
+  );
+
   // Block math: $$...$$
-  let cleaned = content.replace(
-    /\$\$([\s\S]*?)\$\$/g,
-    (_match, tex) => {
-      const id = `${MATH_PLACEHOLDER_PREFIX}${placeholders.length}${MATH_PLACEHOLDER_SUFFIX}`;
-      placeholders.push({ id, raw: tex.trim(), display: true });
-      return id;
-    }
+  cleaned = cleaned.replace(/\$\$([\s\S]*?)\$\$/g, (_match, tex) =>
+    makePlaceholder(tex, true),
   );
 
   // Inline math: $...$ (but not $$)
   cleaned = cleaned.replace(
     /(?<!\$)\$(?!\$)([^\n$]+?)(?<!\$)\$(?!\$)/g,
-    (_match, tex) => {
-      const id = `${MATH_PLACEHOLDER_PREFIX}${placeholders.length}${MATH_PLACEHOLDER_SUFFIX}`;
-      placeholders.push({ id, raw: tex.trim(), display: false });
-      return id;
-    }
+    (_match, tex) => makePlaceholder(tex, false),
   );
 
   return { cleaned, placeholders };
 }
 
+// True if the content likely contains LaTeX math worth rendering in the
+// KaTeX WebView path (MathHtmlView). Catches delimited math ($…$, $$…$$,
+// \(…\), \[…\]) AND common bare commands/environments that models emit
+// (\frac, \dfrac, \boxed, \begin{cases|aligned|...}, \sqrt, \sum, \int).
+export function containsMath(content: string): boolean {
+  if (!content) return false;
+  return (
+    /\$\$[\s\S]+?\$\$/.test(content) || // $$…$$
+    /(?<!\$)\$(?!\$)[^\n$]+?\$/.test(content) || // $…$
+    /\\\([\s\S]+?\\\)/.test(content) || // \(…\)
+    /\\\[[\s\S]+?\\\]/.test(content) || // \[…\]
+    /\\(?:d?frac|boxed|sqrt|sum|int|begin\{[a-z]+\}|cdot|times|alpha|beta|theta|pi|Rightarrow|leq|geq|neq|partial)/.test(
+      content,
+    )
+  );
+}
+
 export function isMathPlaceholder(text: string): boolean {
-  return text.startsWith(MATH_PLACEHOLDER_PREFIX) && text.endsWith(MATH_PLACEHOLDER_SUFFIX);
+  return /^MATH_\d+$/.test(text);
 }
 
 export function parsePlaceholderIndex(text: string): number {
-  const match = text.match(
-    new RegExp(`^${MATH_PLACEHOLDER_PREFIX}(\\d+)${MATH_PLACEHOLDER_SUFFIX}$`)
-  );
+  const match = text.match(/^MATH_(\d+)$/);
   return match ? parseInt(match[1], 10) : -1;
 }
 

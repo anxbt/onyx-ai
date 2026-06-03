@@ -18,6 +18,11 @@ interface InputBarProps {
   onCamera?: () => void;
   onToggleSearch?: () => void;
   searchMode?: "on" | "off";
+  // Thinking-depth chip. When `reasoningLabel` is a string the chip renders
+  // (e.g., "Med", "Always on"). When null/undefined the chip is hidden —
+  // used for models that don't expose reasoning controls.
+  reasoningLabel?: string | null;
+  onOpenReasoningSheet?: () => void;
   streaming: boolean;
   attachments: Attachment[];
   canSend: boolean;
@@ -37,6 +42,8 @@ export function InputBar({
   onCamera,
   onToggleSearch,
   searchMode,
+  reasoningLabel,
+  onOpenReasoningSheet,
   streaming,
   attachments,
   canSend,
@@ -100,6 +107,37 @@ export function InputBar({
                   size={18}
                   color={searchMode === "off" ? Colors.textTertiary : Colors.primary}
                 />
+              </Pressable>
+            ) : null}
+            {reasoningLabel && onOpenReasoningSheet ? (
+              <Pressable
+                onPress={onOpenReasoningSheet}
+                hitSlop={8}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: Spacing.sm,
+                  paddingVertical: 2,
+                  borderRadius: Spacing.radius.button,
+                  borderWidth: 1,
+                  borderColor: Colors.borderHairline,
+                }}
+              >
+                <Ionicons
+                  name="bulb-outline"
+                  size={14}
+                  color={Colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    Typography.uiLabel,
+                    { color: Colors.textSecondary, fontSize: 11 },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {reasoningLabel}
+                </Text>
               </Pressable>
             ) : null}
           </View>

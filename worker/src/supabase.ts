@@ -77,19 +77,28 @@ export async function insertAssistantMessage(
     userId: string;
     content: string;
     model: string;
+    // Optional chain-of-thought trace for reasoning-capable models. Stored
+    // in messages.reasoning text column (migration 0011). Null/omitted when
+    // the model didn't emit any reasoning content.
+    reasoning?: string | null;
   },
 ) {
+  const body: Record<string, unknown> = {
+    conversation_id: params.conversationId,
+    user_id: params.userId,
+    role: "assistant",
+    content: params.content,
+    model: params.model,
+    has_attachment: false,
+  };
+  if (params.reasoning) {
+    body.reasoning = params.reasoning;
+  }
+
   const response = await fetch(`${baseUrl(env)}/rest/v1/messages`, {
     method: "POST",
     headers: restHeaders(env),
-    body: JSON.stringify({
-      conversation_id: params.conversationId,
-      user_id: params.userId,
-      role: "assistant",
-      content: params.content,
-      model: params.model,
-      has_attachment: false,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

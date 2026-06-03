@@ -1,7 +1,7 @@
 import { fetch as expoFetch } from "expo/fetch";
 
 import { getModelConfig } from "@/lib/models";
-import type { Attachment, Message, Source } from "@/types";
+import type { Attachment, Message, ReasoningEffortLevel, Source } from "@/types";
 
 function getWorkerUrl() {
   return (process.env.EXPO_PUBLIC_WORKER_URL || "http://localhost:8787").replace(/\/+$/, "");
@@ -44,6 +44,10 @@ export async function chatFromWorker({
 
 export interface StreamCallbacks {
   onContent: (content: string) => void;
+  // Accumulated reasoning text (concatenation of `delta.reasoning_details[*].text`
+  // entries from streaming chunks). Called repeatedly with the full
+  // accumulated trace so far. Only invoked for models that emit reasoning.
+  onReasoning?: (accumulated: string) => void;
   onSources?: (sources: Source[]) => void;
   onDone: (result: StreamDoneResult) => void;
   onError: (error: Error) => void;
@@ -67,6 +71,7 @@ export function streamChatFromWorker({
   attachments,
   enableSearch,
   forceSearch,
+  reasoningEffort,
   signal,
   callbacks,
 }: {
@@ -77,6 +82,10 @@ export function streamChatFromWorker({
   attachments?: Attachment[];
   enableSearch?: boolean;
   forceSearch?: boolean;
+  // Optional per-request reasoning depth. Worker forwards as
+  // `reasoning: { effort }` to OpenRouter. Omit (or "none") to disable.
+  // Ignored for models with reasoningConfig.kind === "always-on".
+  reasoningEffort?: ReasoningEffortLevel;
   signal?: AbortSignal;
   callbacks: StreamCallbacks;
 }): () => void {
@@ -135,6 +144,7 @@ export function streamChatFromWorker({
       conversationId,
       model: model.id,
       messages: workerMessages,
+      reasoningEffort,
       enableSearch,
       forceSearch,
     }),
@@ -149,6 +159,7 @@ export function streamChatFromWorker({
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
+      let accumulatedReasoning = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -180,6 +191,37 @@ export function streamChatFromWorker({
               return;
             }
 
+            // Reasoning content from OpenRouter's normalized delta.
+            // `reasoning_details` is an array of typed entries; we concat
+            // `text` from "reasoning.text" and "reasoning.summary" types and
+            // ignore "reasoning.encrypted" (opaque, nothing to display).
+            const reasoningDetails = parsed.choices?.[0]?.delta?.reasoning_details;
+            if (Array.isArray(reasoningDetails)) {
+              let added = "";
+              for (const entry of reasoningDetails) {
+                if (
+                  entry &&
+                  typeof entry === "object" &&
+                  (entry.type === "reasoning.text" ||
+                    entry.type === "reasoning.summary") &&
+                  typeof entry.text === "string"
+                ) {
+                  added += entry.text;
+                }
+              }
+              if (added) {
+                accumulatedReasoning += added;
+                callbacks.onReasoning?.(accumulatedReasoning);
+              }
+            }
+            // Some providers also emit `delta.reasoning` directly as a string
+            // (older non-normalized shape). Pick that up too.
+            const reasoningStr = parsed.choices?.[0]?.delta?.reasoning;
+            if (typeof reasoningStr === "string" && reasoningStr.length > 0) {
+              accumulatedReasoning += reasoningStr;
+              callbacks.onReasoning?.(accumulatedReasoning);
+            }
+
             const delta = parsed.choices?.[0]?.delta?.content ?? "";
             if (delta) {
               accumulated += delta;
@@ -199,7 +241,13 @@ export function streamChatFromWorker({
       }
     })
     .catch((err) => {
-      if ((err as DOMException)?.name === "AbortError") return;
+      // Belt: AbortSignal authoritatively says we cancelled.
+      if (linkedSignal.aborted) return;
+      // Braces: expo/fetch throws errors whose `name` is not "AbortError" —
+      // its message is literally "Fetch request has been canceled".
+      const name = (err as Error)?.name;
+      const message = (err as Error)?.message ?? "";
+      if (name === "AbortError" || /aborted|cancel(?:l)?ed/i.test(message)) return;
       callbacks.onError(err instanceof Error ? err : new Error(String(err)));
     });
 

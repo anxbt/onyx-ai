@@ -11,6 +11,7 @@ import {
   fetchMessagesRange,
   fetchMessageCount,
   insertConversationSummary,
+  matchMemoryFacts,
   matchMessages,
 } from "./supabase";
 
@@ -223,6 +224,19 @@ export async function handleChat(c: Context<HonoEnv>) {
     // Wave 5: search augmentation (Tavily) — explicit opt-in only
     const enableSearch = body.enableSearch as boolean | undefined;
     const forceSearch = body.forceSearch as boolean | undefined;
+    // Per-request reasoning depth. Forwarded to OpenRouter as
+    // `reasoning: { effort }`. OpenRouter normalizes across providers
+    // (DeepSeek V4 Flash supports up to "xhigh"; others vary). Omitted for
+    // models with always-on reasoning (Kimi K2 Thinking) — those models
+    // reason regardless of this param, so the client passes undefined.
+    const reasoningEffort = body.reasoningEffort as
+      | "none"
+      | "minimal"
+      | "low"
+      | "medium"
+      | "high"
+      | "xhigh"
+      | undefined;
     let tavilySources: Array<{ title: string; url: string; snippet: string }> = [];
     if (enableSearch === true && env.TAVILY_API_KEY) {
       const lastUserContent = getLastUserContent(messages);
@@ -310,12 +324,43 @@ export async function handleChat(c: Context<HonoEnv>) {
               relevant.map((m) => `${m.role}: ${m.content}`).join("\n");
             finalMessages = [{ role: "system", content: retrievalCtx }, ...finalMessages];
           }
+
+          // Layer 4.5: memory facts retrieval (Wave 4 wiring fix — Section 3e)
+          // Reuse queryEmbedding from Layer 3. Higher threshold (0.72) than
+          // message retrieval (0.55) so only strongly-relevant facts join the
+          // context. Strictly additive — no-op when memory_facts is empty.
+          const facts = await matchMemoryFacts(env, {
+            queryEmbedding,
+            matchThreshold: 0.72,
+            matchCount: 6,
+            userId,
+          }).catch(() => []);
+
+          if (facts?.length) {
+            const memoryCtx =
+              "[What you remember about this user]\n" +
+              facts.map((f) => `• ${f.content} (${f.category})`).join("\n");
+            finalMessages = [{ role: "system", content: memoryCtx }, ...finalMessages];
+          }
         }
       }
     }
 
     const estimatedPrompt = estimateTokens(JSON.stringify(finalMessages));
     const maxOutput = Math.max(4096, Math.min(model.maxOutput, model.contextWindow - estimatedPrompt - 1024));
+
+    // Build the reasoning param for OpenRouter.
+    //   - a real effort level → request that depth
+    //   - "none" → explicitly DISABLE reasoning. Omitting the param doesn't
+    //     turn reasoning off (the model reasons by default), which is why
+    //     "Off" still showed a thinking trace. `enabled: false` disables it.
+    //   - undefined (no preference sent) → omit, model default.
+    const reasoningParam =
+      reasoningEffort === "none"
+        ? { reasoning: { enabled: false } }
+        : reasoningEffort
+          ? { reasoning: { effort: reasoningEffort } }
+          : {};
 
     const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -330,6 +375,7 @@ export async function handleChat(c: Context<HonoEnv>) {
         messages: finalMessages,
         stream: true,
         max_tokens: maxOutput,
+        ...reasoningParam,
       }),
     });
 
@@ -343,6 +389,7 @@ export async function handleChat(c: Context<HonoEnv>) {
     const encoder = new TextEncoder();
 
     let fullContent = "";
+    let fullReasoning = "";
     let promptTokens = 0;
     let completionTokens = 0;
     let totalTokens = 0;
@@ -378,6 +425,32 @@ export async function handleChat(c: Context<HonoEnv>) {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta?.content ?? "";
               if (delta) fullContent += delta;
+
+              // Accumulate reasoning trace from OpenRouter's normalized
+              // delta.reasoning_details (array of typed entries). We persist
+              // this separately from `content` so the saved assistant
+              // message's visible answer doesn't include the trace.
+              const reasoningDetails =
+                parsed.choices?.[0]?.delta?.reasoning_details;
+              if (Array.isArray(reasoningDetails)) {
+                for (const entry of reasoningDetails) {
+                  if (
+                    entry &&
+                    typeof entry === "object" &&
+                    (entry.type === "reasoning.text" ||
+                      entry.type === "reasoning.summary") &&
+                    typeof entry.text === "string"
+                  ) {
+                    fullReasoning += entry.text;
+                  }
+                }
+              }
+              // Some providers also emit a simple `delta.reasoning` string.
+              const reasoningStr = parsed.choices?.[0]?.delta?.reasoning;
+              if (typeof reasoningStr === "string" && reasoningStr.length > 0) {
+                fullReasoning += reasoningStr;
+              }
+
               if (parsed.usage) {
                 promptTokens = parsed.usage.prompt_tokens ?? promptTokens;
                 completionTokens = parsed.usage.completion_tokens ?? completionTokens;
@@ -414,6 +487,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               userId,
               content: fullContent,
               model: model.id,
+              reasoning: fullReasoning || null,
             });
             insertedMessageId = inserted.id;
           }

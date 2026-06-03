@@ -14,6 +14,7 @@ import { CodeBlock } from "@/components/chat/CodeBlock";
 import {
   extractMath,
   isMathPlaceholder,
+  MATH_PLACEHOLDER_SPLIT_REGEX,
   parsePlaceholderIndex,
   streamingSafeContent,
 } from "@/lib/markdown";
@@ -313,7 +314,15 @@ function createCustomRules(
     // Text with math placeholders + inline citation pills
     text: (node, _children, _parent, styles) => {
       const text = node.content || "";
-      const parts = text.split(/(__MATH_\d+__)/g);
+      // Use the shared regex from lib/markdown.ts so the format stays in sync
+      // with extractMath's prefix/suffix. NOTE: String.prototype.split with a
+      // global RegExp can be stateful in some engines; clone via .source/.flags
+      // to get a fresh stateless instance per call.
+      const splitRegex = new RegExp(
+        MATH_PLACEHOLDER_SPLIT_REGEX.source,
+        MATH_PLACEHOLDER_SPLIT_REGEX.flags,
+      );
+      const parts = text.split(splitRegex);
 
       const renderWithCitations = (segment: string, baseKey: string) => {
         // Split on [1], [2], [3] inline citation markers

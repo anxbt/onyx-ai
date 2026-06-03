@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import * as Updates from "expo-updates";
+import { useState } from "react";
+import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/colors";
@@ -71,6 +73,44 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { signOut, session, profile } = useAuth();
   const preferredModel = getModelConfig(profile?.preferredModel ?? "");
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
+
+  // Show the first 8 chars of the bundle ID so the user can verify which JS
+  // they're running. Useful for debugging OTA delivery. Empty in dev / Expo Go.
+  const bundleLabel = Updates.updateId
+    ? `${Updates.updateId.slice(0, 8)}…`
+    : Updates.isEnabled
+      ? "embedded"
+      : "dev";
+
+  const handleCheckUpdates = async () => {
+    if (updateBusy) return;
+    if (!Updates.isEnabled) {
+      Alert.alert("Not available", "OTA updates are only active in production builds.");
+      return;
+    }
+    setUpdateBusy(true);
+    setUpdateStatus("Checking…");
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        setUpdateStatus("Already on the latest version.");
+        setUpdateBusy(false);
+        return;
+      }
+      setUpdateStatus("Downloading…");
+      await Updates.fetchUpdateAsync();
+      setUpdateStatus("Reloading…");
+      // Reload immediately into the new bundle. The user sees a brief splash
+      // flash and then the app comes back with the updated JS active.
+      await Updates.reloadAsync();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setUpdateStatus(`Update check failed: ${message}`);
+      setUpdateBusy(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -188,7 +228,27 @@ export default function SettingsScreen() {
               paddingHorizontal: Spacing.lg,
             }}
           >
-            <SettingsRow detail="v1.0" label="Version" />
+            <SettingsRow detail="v1.0.3" label="Version" />
+            <View style={{ height: 1, backgroundColor: Colors.borderHairline }} />
+            <SettingsRow detail={bundleLabel} label="Bundle" />
+            <View style={{ height: 1, backgroundColor: Colors.borderHairline }} />
+            <SettingsRow
+              detail={updateBusy ? "…" : "Tap"}
+              label="Check for updates"
+              onPress={handleCheckUpdates}
+            />
+            {updateStatus ? (
+              <View style={{ paddingBottom: Spacing.md, paddingTop: 2 }}>
+                <Text
+                  style={[
+                    Typography.uiLabel,
+                    { color: Colors.textTertiary, fontSize: 11 },
+                  ]}
+                >
+                  {updateStatus}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 

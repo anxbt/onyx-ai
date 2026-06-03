@@ -4,19 +4,24 @@ import { Image, Pressable, Text, TextInput, View } from "react-native";
 
 import { CitationCards } from "@/components/chat/CitationCard";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
+import { MathHtmlView } from "@/components/chat/MathHtmlView";
 import { StreamingIndicator } from "@/components/chat/StreamingIndicator";
 import { SuggestionChips } from "@/components/chat/SuggestionChips";
 import { Colors } from "@/constants/colors";
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
-import { extractResponseType } from "@/lib/markdown";
+import { containsMath, extractResponseType } from "@/lib/markdown";
 import { getModelConfig } from "@/lib/models";
 import { detectUncertainty } from "@/lib/uncertainty";
+import { ReasoningPanel } from "@/components/chat/ReasoningPanel";
 import type { Message } from "@/types";
 
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
+  // For the in-flight streaming bubble only. Saved messages use
+  // `message.reasoning` directly.
+  streamingReasoning?: string;
   onSuggestionSelect?: (text: string) => void;
   onEdit?: (messageId: string, newContent: string) => void;
   onRegenerate?: () => void;
@@ -41,6 +46,7 @@ function extractSuggestions(content: string): string[] {
 function MessageBubbleComponent({
   message,
   isStreaming,
+  streamingReasoning,
   onSuggestionSelect,
   onEdit,
   onRegenerate,
@@ -158,6 +164,15 @@ function MessageBubbleComponent({
           ) : null
         )}
 
+        {/* Reasoning trace (thinking models only). Hidden for user bubbles
+            and for messages without any reasoning content. */}
+        {!isUser ? (
+          <ReasoningPanel
+            reasoning={message.reasoning ?? streamingReasoning}
+            isStreaming={isStreaming}
+          />
+        ) : null}
+
         {/* Output harness: response-type badge */}
         {!isUser && responseType ? (
           <Text
@@ -199,7 +214,18 @@ function MessageBubbleComponent({
           </View>
         ) : null}
 
-        <MarkdownRenderer content={(cleanContent || "").trim()} isStreaming={isStreaming} sources={message.sources} />
+        {!isUser && !isStreaming && containsMath(cleanContent) ? (
+          // Final assistant messages with math render in the KaTeX WebView
+          // (math is protected from markdown). Streaming / user / non-math
+          // messages keep the native renderer.
+          <MathHtmlView content={(cleanContent || "").trim()} />
+        ) : (
+          <MarkdownRenderer
+            content={(cleanContent || "").trim()}
+            isStreaming={isStreaming}
+            sources={message.sources}
+          />
+        )}
         {isStreaming ? <StreamingIndicator /> : null}
 
         {/* Citation cards */}
