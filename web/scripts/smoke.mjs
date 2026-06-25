@@ -31,9 +31,12 @@ async function checkRenderRoute(page) {
     lineNumbers: await page.locator(".linenumber, .react-syntax-highlighter-line-number").count(),
     mermaid: await page.locator(".mermaid-frame svg").count(),
     chart: await page.locator(".chart-frame").count(),
+    plot: await page.locator(".plot-frame svg path").count(),
+    molecule: await page.locator(".molecule-frame svg").count(),
     geometry: await page.locator(".geometry-frame").count(),
     html3d: await page.locator(".html-frame").count(),
     citations: await page.locator(".citation-pill").count(),
+    verification: await page.locator(".verification-chip.is-valid").count(),
     overflow: await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1),
   };
 

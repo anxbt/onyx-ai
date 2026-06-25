@@ -77,6 +77,7 @@ export async function insertAssistantMessage(
     userId: string;
     content: string;
     model: string;
+    sources?: Array<{ title: string; url: string; snippet: string; faviconUrl?: string }>;
     // Optional chain-of-thought trace for reasoning-capable models. Stored
     // in messages.reasoning text column (migration 0011). Null/omitted when
     // the model didn't emit any reasoning content.
@@ -93,6 +94,9 @@ export async function insertAssistantMessage(
   };
   if (params.reasoning) {
     body.reasoning = params.reasoning;
+  }
+  if (params.sources?.length) {
+    body.sources = params.sources;
   }
 
   const response = await fetch(`${baseUrl(env)}/rest/v1/messages`, {

@@ -83,6 +83,172 @@ async function classifySearchNeed(query: string, env: HonoEnv["Bindings"]): Prom
   }
 }
 
+type ResearchTraceEvent = {
+  id: string;
+  stage: "plan" | "search" | "read" | "synthesize";
+  label: string;
+  detail?: string;
+  provider?: string;
+  query?: string;
+  url?: string;
+  title?: string;
+};
+
+type TavilyResult = {
+  title: string;
+  url: string;
+  content: string;
+  score?: number;
+  favicon?: string;
+};
+
+const SOCIAL_INTENT_RE =
+  /\b(last\s*30\s*days?|past\s*30\s*days?|recent|current|reddit|x\.com|twitter|hacker\s*news|\bhn\b|github|social|community|what\s+(people|developers|users)\s+(say|think)|sentiment|trending|trend)\b/i;
+
+function hasSocialResearchIntent(query: string): boolean {
+  return SOCIAL_INTENT_RE.test(query);
+}
+
+function providerFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (host.endsWith("reddit.com")) return "Reddit";
+    if (host.endsWith("x.com") || host.endsWith("twitter.com")) return "X";
+    if (host.endsWith("news.ycombinator.com")) return "Hacker News";
+    if (host.endsWith("github.com")) return "GitHub";
+    return host;
+  } catch {
+    return "Web";
+  }
+}
+
+function faviconFromUrl(url: string, provided?: string): string | undefined {
+  if (provided) return provided;
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}/favicon.ico`;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildResearchQueries(query: string) {
+  if (!hasSocialResearchIntent(query)) {
+    return [{ provider: "Web", query, includeDomains: undefined as string[] | undefined, maxResults: 4 }];
+  }
+
+  return [
+    { provider: "Web", query, includeDomains: undefined as string[] | undefined, maxResults: 3 },
+    { provider: "Reddit", query, includeDomains: ["reddit.com"], maxResults: 3 },
+    { provider: "X", query, includeDomains: ["x.com", "twitter.com"], maxResults: 3 },
+    { provider: "Hacker News", query, includeDomains: ["news.ycombinator.com"], maxResults: 3 },
+    { provider: "GitHub", query, includeDomains: ["github.com"], maxResults: 2 },
+  ];
+}
+
+async function runTavilySearch(
+  env: HonoEnv["Bindings"],
+  plan: { provider: string; query: string; includeDomains?: string[]; maxResults: number },
+  useMonthFilter: boolean,
+): Promise<TavilyResult[]> {
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: env.TAVILY_API_KEY,
+      query: plan.query,
+      search_depth: "advanced",
+      include_answer: false,
+      include_favicon: true,
+      max_results: plan.maxResults,
+      time_range: useMonthFilter ? "month" : undefined,
+      include_domains: plan.includeDomains,
+    }),
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { results?: TavilyResult[] };
+  return data.results ?? [];
+}
+
+async function runResearchSearch(query: string, env: HonoEnv["Bindings"]) {
+  const socialMode = hasSocialResearchIntent(query);
+  const plans = buildResearchQueries(query);
+  const trace: ResearchTraceEvent[] = [
+    {
+      id: "research-plan",
+      stage: "plan",
+      label: socialMode ? "Planning last-30-days social research" : "Planning web research",
+      detail: socialMode
+        ? "Scanning web, Reddit, X, Hacker News, and GitHub where available."
+        : "Checking fresh web results before answering.",
+    },
+    ...plans.map((plan) => ({
+      id: `search-${plan.provider.toLowerCase().replace(/\W+/g, "-")}`,
+      stage: "search" as const,
+      label: `Searching ${plan.provider}`,
+      detail: socialMode ? "Restricted to results published in roughly the last month." : undefined,
+      provider: plan.provider,
+      query: plan.query,
+    })),
+  ];
+
+  const settled = await Promise.allSettled(plans.map((plan) => runTavilySearch(env, plan, socialMode)));
+  const seenUrls = new Set<string>();
+  const results: TavilyResult[] = [];
+
+  for (const item of settled) {
+    if (item.status !== "fulfilled") continue;
+    for (const result of item.value) {
+      if (!result.url || seenUrls.has(result.url)) continue;
+      seenUrls.add(result.url);
+      results.push(result);
+    }
+  }
+
+  results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const selected = results.slice(0, socialMode ? 10 : 4);
+  const sources = selected.map((result) => {
+    const provider = providerFromUrl(result.url);
+    return {
+      title: provider === "Web" ? result.title : `[${provider}] ${result.title}`,
+      url: result.url,
+      snippet: result.content.slice(0, 220),
+      faviconUrl: faviconFromUrl(result.url, result.favicon),
+    };
+  });
+
+  if (sources.length) {
+    trace.push({
+      id: "research-read",
+      stage: "read",
+      label: `Reading ${sources.length} candidate sources`,
+      detail: "Deduplicating links and keeping the strongest snippets for citation.",
+    });
+    trace.push({
+      id: "research-synthesize",
+      stage: "synthesize",
+      label: "Cross-checking and preparing cited answer",
+      detail: "The answer should cite only the sources found in this run.",
+    });
+  }
+
+  const context =
+    sources.length === 0
+      ? ""
+      : (socialMode
+          ? "[Last-30-days social research results]\n"
+          : "[Web search results]\n") +
+        selected
+          .map(
+            (result, index) =>
+              `[${index + 1}] ${result.title}\nSource: ${result.url}\nPlatform: ${providerFromUrl(result.url)}\nContent: ${result.content.slice(0, 700)}`,
+          )
+          .join("\n\n") +
+        "\n\nUse these sources to answer. Cite them inline as [1], [2], etc. If the sources are weak, stale, or missing a platform the user asked for, say that plainly. Do not fabricate social consensus, numbers, prices, dates, or current events.";
+
+  return { context, sources, trace };
+}
+
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / CHARS_PER_TOKEN));
 }
@@ -221,7 +387,8 @@ export async function handleChat(c: Context<HonoEnv>) {
       );
     }
 
-    // Wave 5: search augmentation (Tavily) — explicit opt-in only
+    // Wave 5 / Phase 7: search augmentation (Tavily). Normal web search stays
+    // single-source; social/current intent expands into targeted sources.
     const enableSearch = body.enableSearch as boolean | undefined;
     const forceSearch = body.forceSearch as boolean | undefined;
     // Per-request reasoning depth. Forwarded to OpenRouter as
@@ -237,10 +404,11 @@ export async function handleChat(c: Context<HonoEnv>) {
       | "high"
       | "xhigh"
       | undefined;
-    let tavilySources: Array<{ title: string; url: string; snippet: string }> = [];
+    let tavilySources: Array<{ title: string; url: string; snippet: string; faviconUrl?: string }> = [];
+    let researchTrace: ResearchTraceEvent[] = [];
     if (enableSearch === true && env.TAVILY_API_KEY) {
       const lastUserContent = getLastUserContent(messages);
-      let shouldSearch = forceSearch === true;
+      let shouldSearch = forceSearch === true || hasSocialResearchIntent(lastUserContent);
       if (!shouldSearch && lastUserContent) {
         try {
           shouldSearch = await classifySearchNeed(lastUserContent, env);
@@ -250,37 +418,11 @@ export async function handleChat(c: Context<HonoEnv>) {
       }
       if (shouldSearch && lastUserContent) {
         try {
-          const tavilyRes = await fetch("https://api.tavily.com/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              api_key: env.TAVILY_API_KEY,
-              query: lastUserContent,
-              search_depth: "advanced",
-              include_answer: true,
-              max_results: 4,
-            }),
-          });
-          if (tavilyRes.ok) {
-            const tavilyData = (await tavilyRes.json()) as {
-              answer?: string;
-              results?: Array<{ title: string; url: string; content: string }>;
-            };
-            const results = tavilyData.results ?? [];
-            const answer = tavilyData.answer ?? "";
-            if (results.length) {
-              tavilySources = results.map((r) => ({
-                title: r.title,
-                url: r.url,
-                snippet: r.content.slice(0, 200),
-              }));
-              const searchCtx =
-                "[Web search results]\n" +
-                (answer ? `Summary: ${answer}\n\n` : "") +
-                results.map((r, i) => `[${i + 1}] ${r.title}\nSource: ${r.url}\nContent: ${r.content.slice(0, 500)}`).join("\n\n") +
-                "\n\nUse these sources to answer. Cite them inline as [1], [2], etc. If the sources do not contain the answer, say so plainly — do NOT fabricate numbers, prices, or current events.";
-              messages = [{ role: "system", content: searchCtx }, ...messages];
-            }
+          const research = await runResearchSearch(lastUserContent, env);
+          researchTrace = research.trace;
+          tavilySources = research.sources;
+          if (research.context) {
+            messages = [{ role: "system", content: research.context }, ...messages];
           }
         } catch {
           // search is best-effort
@@ -396,6 +538,12 @@ export async function handleChat(c: Context<HonoEnv>) {
 
     const writeStream = (async () => {
       try {
+        for (const event of researchTrace) {
+          await writer.write(
+            encoder.encode(`data: ${JSON.stringify({ type: "research_step", event })}\n\n`),
+          );
+        }
+
         // Emit citation sources BEFORE streaming model tokens so client can render Perplexity-style cards
         if (tavilySources.length) {
           await writer.write(
@@ -487,6 +635,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               userId,
               content: fullContent,
               model: model.id,
+              sources: tavilySources,
               reasoning: fullReasoning || null,
             });
             insertedMessageId = inserted.id;

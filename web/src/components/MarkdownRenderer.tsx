@@ -14,6 +14,177 @@ type MarkdownRendererProps = {
   sources?: Source[];
 };
 
+type VerificationMarker = {
+  type?: string;
+  equation?: string;
+  var?: string;
+  solutions?: string[];
+};
+
+const mathNames = new Set([
+  "abs",
+  "acos",
+  "asin",
+  "atan",
+  "ceil",
+  "cos",
+  "E",
+  "exp",
+  "floor",
+  "ln",
+  "log",
+  "max",
+  "min",
+  "PI",
+  "pow",
+  "round",
+  "sin",
+  "sqrt",
+  "tan",
+]);
+
+function extractVerificationMarkers(content: string): { cleanContent: string; markers: VerificationMarker[] } {
+  const markers: VerificationMarker[] = [];
+  const cleanContent = content.replace(/<!--\s*verify\s*:\s*({[\s\S]*?})\s*-->/g, (_match, json) => {
+    try {
+      const parsed = JSON.parse(json) as VerificationMarker;
+      markers.push(parsed);
+    } catch {
+      // Hide malformed machine metadata rather than showing raw JSON to users.
+    }
+    return "";
+  });
+
+  return { cleanContent, markers };
+}
+
+function identifierSet(input: string): Set<string> {
+  return new Set(input.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []);
+}
+
+function findMatchingLeftParen(input: string, index: number) {
+  let depth = 0;
+  for (let cursor = index; cursor >= 0; cursor -= 1) {
+    if (input[cursor] === ")") depth += 1;
+    if (input[cursor] === "(") {
+      depth -= 1;
+      if (depth === 0) return cursor;
+    }
+  }
+  return -1;
+}
+
+function findMatchingRightParen(input: string, index: number) {
+  let depth = 0;
+  for (let cursor = index; cursor < input.length; cursor += 1) {
+    if (input[cursor] === "(") depth += 1;
+    if (input[cursor] === ")") {
+      depth -= 1;
+      if (depth === 0) return cursor;
+    }
+  }
+  return -1;
+}
+
+function operandStart(input: string, caretIndex: number) {
+  let end = caretIndex - 1;
+  while (input[end] === " ") end -= 1;
+  if (input[end] === ")") return findMatchingLeftParen(input, end);
+  let start = end;
+  while (start >= 0 && /[A-Za-z0-9_.]/.test(input[start])) start -= 1;
+  return start + 1;
+}
+
+function operandEnd(input: string, caretIndex: number) {
+  let start = caretIndex + 1;
+  while (input[start] === " ") start += 1;
+  if (input[start] === "(") return findMatchingRightParen(input, start) + 1;
+  let end = start;
+  if (input[end] === "+" || input[end] === "-") end += 1;
+  while (end < input.length && /[A-Za-z0-9_.]/.test(input[end])) end += 1;
+  return end;
+}
+
+function normalizeMathExpression(expression: string) {
+  let normalized = expression.replace(/\bln\s*\(/g, "log(");
+  while (normalized.includes("^")) {
+    const caretIndex = normalized.indexOf("^");
+    const start = operandStart(normalized, caretIndex);
+    const end = operandEnd(normalized, caretIndex);
+    if (start < 0 || end <= caretIndex + 1) {
+      throw new Error("Invalid exponent expression");
+    }
+    const left = normalized.slice(start, caretIndex).trim();
+    const right = normalized.slice(caretIndex + 1, end).trim();
+    normalized = `${normalized.slice(0, start)}pow(${left},${right})${normalized.slice(end)}`;
+  }
+  return normalized;
+}
+
+function compileMathExpression(expression: string, variables: string[]) {
+  const allowed = new Set([...variables, ...mathNames]);
+  for (const identifier of identifierSet(expression)) {
+    if (!allowed.has(identifier)) {
+      throw new Error(`Unsupported identifier: ${identifier}`);
+    }
+  }
+
+  if (!/^[\d\s+\-*/%^().,A-Za-z_]+$/.test(expression)) {
+    throw new Error("Unsupported characters in expression");
+  }
+
+  const normalized = normalizeMathExpression(expression);
+  const args = variables.join(",");
+  const body = `"use strict"; const {abs,acos,asin,atan,ceil,cos,E,exp,floor,log,max,min,PI,pow,round,sin,sqrt,tan}=Math; return (${normalized});`;
+  return new Function(args, body) as (...values: number[]) => number;
+}
+
+function evaluateExpression(expression: string, env: Record<string, number>) {
+  const variables = Object.keys(env);
+  const fn = compileMathExpression(expression, variables);
+  return fn(...variables.map((name) => env[name]));
+}
+
+function verifyEquation(marker: VerificationMarker): boolean | null {
+  if (marker.type !== "equation" || !marker.equation || !marker.var || !marker.solutions?.length) {
+    return null;
+  }
+
+  const [lhs, rhs] = marker.equation.split("=").map((part) => part.trim());
+  if (!lhs || !rhs) return false;
+
+  const names = new Set([
+    ...identifierSet(lhs),
+    ...identifierSet(rhs),
+    ...identifierSet(marker.solutions.join(" ")),
+  ]);
+  for (const name of mathNames) names.delete(name);
+  names.delete(marker.var);
+  const parameters = [...names];
+
+  try {
+    return marker.solutions.some((solution) => {
+      for (let sample = 0; sample < 5; sample += 1) {
+        const env: Record<string, number> = {};
+        parameters.forEach((name, index) => {
+          env[name] = name.toLowerCase().includes("alpha") ? 0.45 + sample * 0.17 : 2 + sample + index;
+        });
+        const solvedValue = evaluateExpression(solution, env);
+        if (!Number.isFinite(solvedValue)) return false;
+        env[marker.var as string] = solvedValue;
+        const left = evaluateExpression(lhs, env);
+        const right = evaluateExpression(rhs, env);
+        if (!Number.isFinite(left) || !Number.isFinite(right) || Math.abs(left - right) > 1e-6) {
+          return false;
+        }
+      }
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
 const syntaxTheme = {
   'code[class*="language-"]': {
     color: "#e6e0e9",
@@ -99,6 +270,50 @@ function renderCitationChildren(children: ReactNode, sources?: Source[]) {
 
     return nodes;
   });
+}
+
+function flattenArrayLikeText(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return value;
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!Array.isArray(parsed)) return value;
+    const flattened = parsed
+      .map((item) => {
+        if (item == null) return "";
+        if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") return String(item);
+        return JSON.stringify(item);
+      })
+      .filter(Boolean)
+      .join(", ");
+    return flattened || value;
+  } catch {
+    return value;
+  }
+}
+
+function renderTableCellChildren(children: ReactNode, sources?: Source[]) {
+  const normalized = Children.map(children, (child) => {
+    if (typeof child !== "string") return child;
+    return flattenArrayLikeText(child);
+  });
+  return renderCitationChildren(normalized, sources);
+}
+
+function sourceLabel(source: Source) {
+  try {
+    return new URL(source.url).hostname.replace(/^www\./, "");
+  } catch {
+    return "Source";
+  }
+}
+
+function stripTrailingSourceSummary(content: string, sources?: Source[]) {
+  if (!sources?.length) return content;
+  return content
+    .replace(/\n{0,2}(?:\*\*)?Sources(?:\*\*)?\s*:\s+[^\n]*(?:\[(?:\d+)\][^\n]*)+\s*$/i, "")
+    .trimEnd();
 }
 
 function CodeBlock({ code, language }: { code: string; language?: string }) {
@@ -259,13 +474,157 @@ function HtmlArtifact({ code }: { code: string }) {
   return <iframe className="artifact-frame html-frame" sandbox="allow-scripts" srcDoc={code} title="HTML artifact" />;
 }
 
+function PlotArtifact({ code }: { code: string }) {
+  try {
+    const parsed = JSON.parse(code) as {
+      title?: string;
+      functions?: string[];
+      xRange?: [number, number];
+      yRange?: [number, number];
+    };
+    const functions = (parsed.functions ?? []).slice(0, 6);
+    if (!functions.length) throw new Error("No functions");
+
+    const xRange = parsed.xRange ?? [-10, 10];
+    const yRange = parsed.yRange ?? [-10, 10];
+    const width = 640;
+    const height = 360;
+    const pad = 36;
+    const plotWidth = width - pad * 2;
+    const plotHeight = height - pad * 2;
+    const colors = ["#e5d5b0", "#9adbcf", "#d7b3ff", "#ffb4ab", "#b9d884", "#a9c7ff"];
+    const scaleX = (x: number) => pad + ((x - xRange[0]) / (xRange[1] - xRange[0])) * plotWidth;
+    const scaleY = (y: number) => pad + (1 - (y - yRange[0]) / (yRange[1] - yRange[0])) * plotHeight;
+
+    const paths = functions.map((expression) => {
+      const fn = compileMathExpression(expression, ["x"]);
+      const segments: string[] = [];
+      let open = false;
+      for (let i = 0; i <= 260; i += 1) {
+        const x = xRange[0] + ((xRange[1] - xRange[0]) * i) / 260;
+        const y = fn(x);
+        if (!Number.isFinite(y) || y < yRange[0] - 1 || y > yRange[1] + 1) {
+          open = false;
+          continue;
+        }
+        const command = open ? "L" : "M";
+        segments.push(`${command}${scaleX(x).toFixed(2)} ${scaleY(y).toFixed(2)}`);
+        open = true;
+      }
+      return segments.join(" ");
+    });
+
+    const xAxis = yRange[0] <= 0 && yRange[1] >= 0 ? scaleY(0) : scaleY(yRange[0]);
+    const yAxis = xRange[0] <= 0 && xRange[1] >= 0 ? scaleX(0) : scaleX(xRange[0]);
+
+    return (
+      <figure className="artifact-frame plot-frame">
+        <figcaption>{parsed.title ?? "Function plot"}</figcaption>
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={parsed.title ?? "Function plot"}>
+          <rect x={pad} y={pad} width={plotWidth} height={plotHeight} rx="10" />
+          {[0, 1, 2, 3, 4].map((tick) => {
+            const x = pad + (plotWidth * tick) / 4;
+            const y = pad + (plotHeight * tick) / 4;
+            return <g key={tick}><line x1={x} x2={x} y1={pad} y2={height - pad} /><line x1={pad} x2={width - pad} y1={y} y2={y} /></g>;
+          })}
+          <line className="plot-axis" x1={pad} x2={width - pad} y1={xAxis} y2={xAxis} />
+          <line className="plot-axis" x1={yAxis} x2={yAxis} y1={pad} y2={height - pad} />
+          {paths.map((path, index) => (
+            <path d={path} key={functions[index]} stroke={colors[index % colors.length]} />
+          ))}
+        </svg>
+        <ol>
+          {functions.map((expression, index) => (
+            <li key={expression}>
+              <span style={{ background: colors[index % colors.length] }} />
+              <code>{expression}</code>
+            </li>
+          ))}
+        </ol>
+      </figure>
+    );
+  } catch {
+    return <pre className="artifact-error">Invalid plot data</pre>;
+  }
+}
+
+function moleculePoints(count: number, cx = 150, cy = 118, radius = 68) {
+  return Array.from({ length: count }, (_item, index) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / count;
+    return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+  });
+}
+
+function MoleculeArtifact({ code }: { code: string }) {
+  try {
+    const parsed = JSON.parse(code) as { smiles?: string; name?: string };
+    const smiles = parsed.smiles?.trim();
+    if (!smiles) throw new Error("No SMILES");
+
+    const ringMatch = smiles.match(/C1(C*)C1/) ?? smiles.match(/C1(C{2,8})1/);
+    const ringSize = ringMatch ? Math.max(3, Math.min(8, ringMatch[1].length + 2)) : null;
+    const points = ringSize ? moleculePoints(ringSize) : [];
+
+    return (
+      <figure className="artifact-frame molecule-frame">
+        <figcaption>
+          <strong>{parsed.name ?? "Molecule"}</strong>
+          <code>{smiles}</code>
+        </figcaption>
+        {points.length ? (
+          <svg viewBox="0 0 300 230" role="img" aria-label={parsed.name ?? smiles}>
+            {points.map((point, index) => {
+              const next = points[(index + 1) % points.length];
+              return <line key={`${point.x}-${point.y}`} x1={point.x} x2={next.x} y1={point.y} y2={next.y} />;
+            })}
+            {points.map((point, index) => (
+              <g key={`${point.x}-${point.y}-atom`}>
+                <circle cx={point.x} cy={point.y} r="15" />
+                <text x={point.x} y={point.y + 4}>C</text>
+                <text className="hydrogen-label" x={point.x + (point.x > 150 ? 20 : -28)} y={point.y + (point.y > 118 ? 20 : -18)}>H2</text>
+                <title>{`Carbon ${index + 1}`}</title>
+              </g>
+            ))}
+          </svg>
+        ) : (
+          <div className="molecule-fallback">{smiles}</div>
+        )}
+      </figure>
+    );
+  } catch {
+    return <pre className="artifact-error">Invalid molecule data</pre>;
+  }
+}
+
+function VerificationResults({ markers }: { markers: VerificationMarker[] }) {
+  if (!markers.length) return null;
+
+  return (
+    <div className="verification-list">
+      {markers.map((marker, index) => {
+        const result = verifyEquation(marker);
+        return (
+          <span className={result ? "verification-chip is-valid" : "verification-chip is-invalid"} key={`${marker.equation}-${index}`}>
+            <b>{result ? "OK" : "!"}</b>
+            {result ? "Verified equation" : "Could not verify equation"}
+            {marker.var ? <code>{marker.var}</code> : null}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MarkdownRenderer({ content, isStreaming = false, sources }: MarkdownRendererProps) {
   const { type, cleanContent } = useMemo(() => extractResponseType(content), [content]);
-  const displayContent = isStreaming ? streamingSafeContent(cleanContent) : cleanContent;
+  const bodyContent = useMemo(() => stripTrailingSourceSummary(cleanContent, sources), [cleanContent, sources]);
+  const { cleanContent: verifiedContent, markers } = useMemo(() => extractVerificationMarkers(bodyContent), [bodyContent]);
+  const displayContent = isStreaming ? streamingSafeContent(verifiedContent) : verifiedContent;
 
   return (
     <div className="markdown-body">
       {type ? <span className="response-type">{type}</span> : null}
+      <VerificationResults markers={markers} />
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -283,6 +642,12 @@ export function MarkdownRenderer({ content, isStreaming = false, sources }: Mark
           li({ children }) {
             return <li>{renderCitationChildren(children, sources)}</li>;
           },
+          th({ children }) {
+            return <th>{renderTableCellChildren(children, sources)}</th>;
+          },
+          td({ children }) {
+            return <td>{renderTableCellChildren(children, sources)}</td>;
+          },
           code(props) {
             const { children, className } = props;
             const code = String(children).replace(/\n$/, "");
@@ -295,6 +660,8 @@ export function MarkdownRenderer({ content, isStreaming = false, sources }: Mark
             if (language === "roadmap") return <RoadmapArtifact code={code} />;
             if (language === "html") return <HtmlArtifact code={code} />;
             if (language === "geometry") return <GeometryArtifact code={code} />;
+            if (language === "plot") return <PlotArtifact code={code} />;
+            if (language === "molecule") return <MoleculeArtifact code={code} />;
             return <CodeBlock code={code} language={language} />;
           },
         }}
@@ -305,7 +672,8 @@ export function MarkdownRenderer({ content, isStreaming = false, sources }: Mark
         <div className="source-list">
           {sources.map((source, index) => (
             <a href={source.url} key={source.url} rel="noopener noreferrer" target="_blank">
-              [{index + 1}] {source.title}
+              {source.faviconUrl ? <img alt="" src={source.faviconUrl} loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
+              <span>[{index + 1}] {sourceLabel(source)} · {source.title}</span>
             </a>
           ))}
         </div>

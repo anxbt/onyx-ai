@@ -12,7 +12,7 @@ import {
   updateMessageContent,
 } from "@/api/supabase";
 import { estimateTokens } from "@/lib/tokens";
-import type { Attachment, Conversation, Message, SessionLike, Source } from "@/types";
+import type { Attachment, Conversation, Message, ResearchTraceEvent, SessionLike, Source } from "@/types";
 
 export function useChat({
   conversationId,
@@ -31,6 +31,7 @@ export function useChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [streamingResearchTrace, setStreamingResearchTrace] = useState<ResearchTraceEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
   const sawContentRef = useRef(false);
@@ -110,6 +111,7 @@ export function useChat({
     setMessages(allMessages);
     setStreaming(true);
     setStreamingContent("");
+    setStreamingResearchTrace([]);
 
     getEmbedding(trimmed, token)
       .then((embedding) => {
@@ -158,6 +160,7 @@ export function useChat({
     sawContentRef.current = false;
     setStreaming(true);
     setStreamingContent("");
+    setStreamingResearchTrace([]);
     setError(null);
 
     const cancel = streamChatFromWorker({
@@ -177,6 +180,13 @@ export function useChat({
         onSources: (sources) => {
           capturedSources = sources;
         },
+        onResearchStep: (event) => {
+          setStreamingResearchTrace((current) => {
+            const existingIndex = current.findIndex((item) => item.id === event.id);
+            if (existingIndex === -1) return [...current, event];
+            return current.map((item, index) => (index === existingIndex ? event : item));
+          });
+        },
         onDone: (result) => {
           const pushFinalMessage = (contentToPush: string) => {
             const assistantMessage: Message = {
@@ -192,6 +202,7 @@ export function useChat({
             setMessages((current) => [...current, assistantMessage]);
             setStreaming(false);
             setStreamingContent("");
+            setStreamingResearchTrace([]);
           };
 
           if (!sawContentRef.current && finalContent) {
@@ -237,6 +248,7 @@ export function useChat({
           setError(err.message || "Could not send message");
           setStreaming(false);
           setStreamingContent("");
+          setStreamingResearchTrace([]);
         },
       },
     });
@@ -298,6 +310,7 @@ export function useChat({
     }
     sawContentRef.current = false;
     setStreaming(false);
+    setStreamingResearchTrace([]);
   }
 
   return {
@@ -305,6 +318,7 @@ export function useChat({
     setMessages,
     streaming,
     streamingContent,
+    streamingResearchTrace,
     error,
     activeConversationId,
     sendMessage,

@@ -621,6 +621,182 @@ input:focus-visible {
   min-block-size: 260px;
 }
 
+.plot-frame {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.plot-frame figcaption,
+.molecule-frame figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.plot-frame svg {
+  inline-size: 100%;
+  min-block-size: 220px;
+}
+
+.plot-frame rect {
+  fill: color-mix(in srgb, var(--surface) 84%, black);
+  stroke: var(--border);
+}
+
+.plot-frame line {
+  stroke: color-mix(in srgb, var(--border) 80%, transparent);
+  stroke-width: 1;
+}
+
+.plot-frame .plot-axis {
+  stroke: color-mix(in srgb, var(--text-muted) 70%, transparent);
+  stroke-width: 1.5;
+}
+
+.plot-frame path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.plot-frame ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plot-frame li {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 0;
+  gap: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.plot-frame li span {
+  inline-size: 10px;
+  block-size: 10px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
+.plot-frame li code,
+.molecule-frame figcaption code,
+.verification-chip code {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 74%, black);
+  color: var(--text-soft);
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+.molecule-frame {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.molecule-frame svg {
+  inline-size: 100%;
+  max-block-size: 260px;
+}
+
+.molecule-frame line {
+  stroke: color-mix(in srgb, var(--gold) 72%, var(--text));
+  stroke-linecap: round;
+  stroke-width: 5;
+}
+
+.molecule-frame circle {
+  fill: color-mix(in srgb, var(--surface) 78%, black);
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+
+.molecule-frame text {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  text-anchor: middle;
+}
+
+.molecule-frame .hydrogen-label {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.molecule-fallback {
+  display: grid;
+  min-block-size: 140px;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-soft);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.verification-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 4px 10px;
+}
+
+.verification-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.verification-chip b {
+  display: inline-grid;
+  inline-size: 18px;
+  block-size: 18px;
+  place-items: center;
+  border-radius: 999px;
+  color: #08140c;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.verification-chip.is-valid {
+  border-color: color-mix(in srgb, #9dd6a5 60%, transparent);
+  background: color-mix(in srgb, #9dd6a5 10%, var(--surface));
+}
+
+.verification-chip.is-valid b {
+  background: #9dd6a5;
+}
+
+.verification-chip.is-invalid {
+  border-color: color-mix(in srgb, var(--danger) 52%, transparent);
+}
+
+.verification-chip.is-invalid b {
+  background: var(--danger);
+  color: #1e0808;
+}
+
 .source-list {
   display: flex;
   flex-wrap: wrap;
@@ -1101,6 +1277,73 @@ input:focus-visible {
   line-height: 1.6;
 }
 
+.research-trace {
+  display: grid;
+  max-inline-size: 760px;
+  gap: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: #151517;
+  color: var(--text-soft);
+  padding: 16px;
+}
+
+.research-trace header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.research-trace header svg,
+.research-trace-icon {
+  color: var(--gold);
+}
+
+.research-trace-list {
+  display: grid;
+  gap: 10px;
+}
+
+.research-trace-item {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.research-trace-icon {
+  display: grid;
+  inline-size: 26px;
+  block-size: 26px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: #202022;
+}
+
+.research-trace-item strong,
+.research-trace-item small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.research-trace-item strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.research-trace-item small {
+  margin-block-start: 3px;
+  color: rgb(199 196 204 / 0.62);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .evidence-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(520px, 1fr));
@@ -1153,6 +1396,28 @@ input:focus-visible {
   color: #d7b743;
   font-size: 16px;
   font-weight: 650;
+}
+
+.evidence-title > span {
+  display: grid;
+  min-inline-size: 0;
+  gap: 3px;
+}
+
+.evidence-title small {
+  color: rgb(240 237 240 / 0.56);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.evidence-title strong {
+  overflow: hidden;
+  color: #d7b743;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+  text-overflow: ellipsis;
 }
 
 .evidence-body {

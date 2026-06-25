@@ -1,5 +1,5 @@
 import { getModelConfig } from "@/lib/models";
-import type { Attachment, Message, Source } from "@/types";
+import type { Attachment, Message, ResearchTraceEvent, Source } from "@/types";
 
 import { supabase } from "./supabase";
 import { getWorkerUrl } from "./worker";
@@ -7,6 +7,7 @@ import { getWorkerUrl } from "./worker";
 export interface StreamCallbacks {
   onContent: (content: string) => void;
   onSources?: (sources: Source[]) => void;
+  onResearchStep?: (event: ResearchTraceEvent) => void;
   onDone: (result: StreamDoneResult) => void;
   onError: (error: Error) => void;
 }
@@ -157,6 +158,11 @@ export function streamChatFromWorker({
 
           if (parsed.type === "sources" && Array.isArray(parsed.sources)) {
             callbacks.onSources?.(parsed.sources as Source[]);
+            return false;
+          }
+
+          if (parsed.type === "research_step" && parsed.event) {
+            callbacks.onResearchStep?.(parsed.event as ResearchTraceEvent);
             return false;
           }
 

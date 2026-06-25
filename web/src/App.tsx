@@ -59,7 +59,18 @@ import { useAuth } from "@/features/auth/useAuth";
 import { useChat } from "@/features/chat/useChat";
 import { useConversationsQuery, useModelCatalogQuery, useTransactionsQuery, useUsageQuery } from "@/features/queries";
 import { useAppStore } from "@/store/app";
-import type { Attachment, Conversation, CreditTransaction, Message, ModelCatalogEntry, ModelConfig, SessionLike, UsageEvent, UserProfile } from "@/types";
+import type {
+  Attachment,
+  Conversation,
+  CreditTransaction,
+  Message,
+  ModelCatalogEntry,
+  ModelConfig,
+  ResearchTraceEvent,
+  SessionLike,
+  UsageEvent,
+  UserProfile,
+} from "@/types";
 
 type View = "chat" | "library" | "projects" | "credits" | "memory" | "settings";
 type RazorpayInstance = {
@@ -205,6 +216,8 @@ $$
 
 Citation pills should link to source metadata [1].
 
+<!--verify:{"type":"equation","equation":"alpha = n/(n*(m-1)+2)","var":"m","solutions":["(n+alpha*n-2*alpha)/(alpha*n)"]}-->
+
 \`\`\`ts
 type Smoke = { ok: boolean };
 const result: Smoke = { ok: true };
@@ -220,6 +233,14 @@ flowchart LR
 
 \`\`\`chart
 {"title":"Context Retrieval Scores","labels":["legal","billing","memory","search"],"values":[91,74,86,79]}
+\`\`\`
+
+\`\`\`plot
+{"functions":["(1-x^2)^(1/2)","(1-x^2)^(1/3)","(1-x^2)^(1/5)","exp(-x^2)"],"xRange":[-1.5,1.5],"yRange":[-0.1,1.2]}
+\`\`\`
+
+\`\`\`molecule
+{"smiles":"C1CCCC1","name":"cyclopentane"}
 \`\`\`
 
 \`\`\`geometry
@@ -409,6 +430,7 @@ function App() {
     setView,
     streaming: chat.streaming,
     streamingContent: chat.streamingContent,
+    streamingResearchTrace: chat.streamingResearchTrace,
     stopStreaming: chat.stopStreaming,
     submitMessage,
     uploadStatus,
@@ -781,6 +803,7 @@ type ChatProps = {
   setView: (view: View) => void;
   streaming: boolean;
   streamingContent: string;
+  streamingResearchTrace: ResearchTraceEvent[];
   stopStreaming: () => void;
   submitMessage: () => void;
   uploadStatus: string | null;
@@ -808,6 +831,7 @@ function ChatStream(props: ChatProps) {
             onSuggestion={props.setDraft}
           />
         ))}
+        {props.streamingResearchTrace.length ? <ResearchTrace events={props.streamingResearchTrace} /> : null}
         {props.streamingContent ? (
           <MessageBubble
             message={{
@@ -828,6 +852,41 @@ function ChatStream(props: ChatProps) {
 
       <DesktopComposer {...props} />
     </>
+  );
+}
+
+function ResearchTrace({ events }: { events: ResearchTraceEvent[] }) {
+  const visibleEvents = events.slice(-8);
+  const iconForStage = (stage: ResearchTraceEvent["stage"]) => {
+    if (stage === "plan") return Database;
+    if (stage === "search") return Search;
+    if (stage === "read") return Globe2;
+    return Check;
+  };
+
+  return (
+    <section className="research-trace" aria-label="Research progress">
+      <header>
+        <Globe2 size={16} />
+        <span>Researching sources</span>
+      </header>
+      <div className="research-trace-list">
+        {visibleEvents.map((event) => {
+          const Icon = iconForStage(event.stage);
+          return (
+            <div className="research-trace-item" key={event.id}>
+              <span className="research-trace-icon" aria-hidden="true">
+                <Icon size={14} />
+              </span>
+              <div>
+                <strong>{event.label}</strong>
+                {event.detail || event.query ? <small>{event.detail ?? event.query}</small> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -906,6 +965,14 @@ function splitSuggestionBlock(content: string) {
   };
 }
 
+function sourceNameFromUrl(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "Source";
+  }
+}
+
 function MessageBubble({
   message,
   onEditUserMessage,
@@ -943,7 +1010,15 @@ function MessageBubble({
   }
 
   const { body, suggestions } = splitSuggestionBlock(message.content);
-  const evidenceItems = message.sources?.map((source) => ({ icon: ExternalLink, title: source.title, body: source.snippet, url: source.url })) ?? [];
+  const evidenceItems =
+    message.sources?.map((source) => ({
+      faviconUrl: source.faviconUrl,
+      icon: ExternalLink,
+      sourceName: sourceNameFromUrl(source.url),
+      title: source.title,
+      body: source.snippet,
+      url: source.url,
+    })) ?? [];
 
   return (
     <article className="desktop-answer">
@@ -969,11 +1044,18 @@ function MessageBubble({
         ) : null}
         {evidenceItems.length ? (
           <div className="evidence-row">
-            {evidenceItems.map(({ icon: Icon, title, body, url }) => (
+            {evidenceItems.map(({ faviconUrl, icon: Icon, sourceName, title, body, url }) => (
               <a className="evidence-card" href={url} key={`${title}-${url}`} rel="noopener noreferrer" target="_blank">
                 <span className="evidence-title">
-                  <Icon size={15} />
-                  {title}
+                  {faviconUrl ? (
+                    <img alt="" src={faviconUrl} loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+                  ) : (
+                    <Icon size={15} />
+                  )}
+                  <span>
+                    <small>{sourceName}</small>
+                    <strong>{title}</strong>
+                  </span>
                 </span>
                 <span className="evidence-body">{body}</span>
                 <span className="evidence-foot">
@@ -2241,6 +2323,7 @@ function MobileChat(props: ChatProps) {
           );
         })(),
       )}
+      {props.streamingResearchTrace.length ? <ResearchTrace events={props.streamingResearchTrace} /> : null}
       {props.streamingContent ? (
         <section className="mobile-analysis">
           <header>

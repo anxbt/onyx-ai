@@ -46,6 +46,18 @@ export interface Source {
   title: string;
   url: string;
   snippet: string;
+  faviconUrl?: string;
+}
+
+export interface ResearchTraceEvent {
+  id: string;
+  stage: "plan" | "search" | "read" | "synthesize";
+  label: string;
+  detail?: string;
+  provider?: string;
+  query?: string;
+  url?: string;
+  title?: string;
 }
 
 export interface Message {
