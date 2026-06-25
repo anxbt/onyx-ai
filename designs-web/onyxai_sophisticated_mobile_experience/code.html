@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OnyxAI - Chat Interface</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+          font-family: 'Material Symbols Outlined';
+          font-weight: normal;
+          font-style: normal;
+          font-size: 24px;
+          line-height: 1;
+          letter-spacing: normal;
+          text-transform: none;
+          display: inline-block;
+          white-space: nowrap;
+          word-wrap: normal;
+          direction: ltr;
+          -webkit-font-feature-settings: 'liga';
+          -webkit-font-smoothing: antialiased;
+        }
+        
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #0A0A0B; /* surface */
+            color: #E2E2E6; /* on-surface */
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed-variant": "#46464e",
+                      "on-tertiary-fixed": "#1a1b22",
+                      "inverse-primary": "#695d40",
+                      "primary": "#E5D5B0", /* Champagne Gold override based on prompt */
+                      "outline": "#27272A",
+                      "surface-container": "#18181B",
+                      "tertiary-container": "#d6d5df",
+                      "surface-container-low": "#1d1b19",
+                      "primary-fixed-dim": "#d5c5a1",
+                      "surface-variant": "#363432",
+                      "on-secondary-fixed-variant": "#45474a",
+                      "on-primary-container": "#675c3e",
+                      "secondary-fixed-dim": "#c6c6ca",
+                      "on-surface": "#E2E2E6",
+                      "surface-tint": "#d5c5a1",
+                      "inverse-on-surface": "#32302d",
+                      "background": "#0A0A0B", /* surface color */
+                      "tertiary": "#f3f1fc",
+                      "on-secondary": "#2f3034",
+                      "error-container": "#93000a",
+                      "on-error": "#690005",
+                      "tertiary-fixed": "#e3e1ec",
+                      "on-tertiary-container": "#5c5c64",
+                      "on-surface-variant": "#A1A1AA", /* A1A1AA for secondary text based on prompt */
+                      "secondary": "#c6c6ca",
+                      "error": "#FFB4AB",
+                      "surface-container-lowest": "#0f0e0c",
+                      "primary-fixed": "#f2e1bb",
+                      "inverse-surface": "#e7e2dd",
+                      "surface-bright": "#3b3936",
+                      "on-primary-fixed-variant": "#50462a",
+                      "surface-container-high": "#2b2a27",
+                      "on-secondary-fixed": "#1a1c1f",
+                      "outline-variant": "#4b463c",
+                      "surface": "#0A0A0B",
+                      "secondary-fixed": "#e2e2e6",
+                      "surface-container-highest": "#363432",
+                      "on-primary": "#392f16",
+                      "on-background": "#e7e2dd",
+                      "primary-container": "#e5d5b0",
+                      "surface-dim": "#151311",
+                      "on-tertiary": "#2f3038",
+                      "tertiary-fixed-dim": "#c6c5cf",
+                      "on-secondary-container": "#b8b8bc",
+                      "on-primary-fixed": "#231b04",
+                      "on-error-container": "#ffdad6",
+                      "secondary-container": "#48494c",
+                      "champagne-gold": "#E5D5B0"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-md": "16px",
+                      "component-gap": "16px",
+                      "stack-sm": "8px",
+                      "section-gap": "48px",
+                      "stack-lg": "32px",
+                      "container-padding": "24px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Geist"
+                      ],
+                      "label-lg": [
+                              "Geist"
+                      ],
+                      "headline-lg": [
+                              "Geist"
+                      ],
+                      "headline-sm": [
+                              "Geist"
+                      ],
+                      "title-lg": [
+                              "Geist"
+                      ],
+                      "body-lg": [
+                              "Geist"
+                      ],
+                      "headline-md": [
+                              "Geist"
+                      ],
+                      "headline-lg-mobile": [
+                              "Geist"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-lg": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-sm": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "title-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+      </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface h-screen flex flex-col antialiased">
+<!-- Top App Bar (Sleek Header) -->
+<header class="flex items-center justify-between px-container-padding h-16 w-full fixed top-0 z-50 bg-background/80 backdrop-blur-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-headline-sm text-headline-sm font-bold text-champagne-gold tracking-[0.2em]">ONYX AI</h1>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:outline-none">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+</button>
+</header>
+<!-- Main Chat Area -->
+<main class="flex-1 overflow-y-auto pt-20 pb-24 px-4 md:px-container-padding max-w-3xl mx-auto w-full flex flex-col gap-stack-lg">
+<!-- User Message Bubble -->
+<div class="flex justify-end w-full">
+<div class="bg-surface-container/40 border border-outline/50 rounded-2xl rounded-tr-sm p-4 max-w-[85%] text-on-surface font-body-md text-body-md backdrop-blur-sm">
+                Can you review the Worker Search Contract details? Specifically the liability clauses.
+            </div>
+</div>
+<!-- AI Response Area -->
+<div class="flex flex-col gap-stack-sm w-full">
+<!-- AI Identifier -->
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-champagne-gold text-[16px] animate-pulse" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-label-lg text-label-lg text-on-surface-variant tracking-wider uppercase">Onyx Analysis</span>
+</div>
+<!-- AI Message Bubble -->
+<div class="text-on-surface font-body-lg text-body-lg leading-relaxed max-w-[90%]">
+                I've reviewed the current draft... the liability clauses are standard, but there is one section requiring attention regarding indemnification limitations.
+            </div>
+<!-- Research Snippet Card (Glassmorphism / High-end UI) -->
+<div class="mt-stack-md bg-surface-container-low/80 border border-outline rounded-xl p-4 flex flex-col gap-3 relative overflow-hidden backdrop-blur-md group hover:border-champagne-gold/30 transition-colors duration-300 shadow-lg shadow-black/20">
+<!-- Decorative subtle glow -->
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-champagne-gold/5 rounded-full blur-2xl pointer-events-none"></div>
+<!-- Card Header -->
+<div class="flex items-center justify-between border-b border-outline/50 pb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">description</span>
+<h3 class="font-title-lg text-title-lg text-on-surface font-semibold">Worker Search Contract</h3>
+</div>
+<span class="font-label-lg text-label-lg text-champagne-gold px-2 py-1 bg-champagne-gold/10 rounded-full border border-champagne-gold/20 font-mono tracking-tighter">Draft V2</span>
+</div>
+<!-- Sections -->
+<div class="flex flex-col gap-2 pt-1">
+<!-- Section 4.2 -->
+<div class="flex items-start gap-3 p-2 rounded-lg hover:bg-surface-bright/20 transition-colors">
+<span class="font-label-lg text-label-lg text-on-surface-variant mt-1 font-mono min-w-[30px]">4.2</span>
+<div>
+<p class="font-body-md text-body-md text-on-surface">Liability Cap at $50k</p>
+<p class="font-label-lg text-label-lg text-on-surface-variant/70 mt-1">Standard limitation applied to general damages.</p>
+</div>
+</div>
+<!-- Section 5.1 (Warning) -->
+<div class="flex items-start gap-3 p-2 rounded-lg bg-error-container/10 border border-error-container/20">
+<span class="font-label-lg text-label-lg text-error/80 mt-1 font-mono min-w-[30px]">5.1</span>
+<div class="flex-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-error/80 text-[16px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+<p class="font-body-md text-body-md text-on-surface font-medium">Missing Indemnification</p>
+</div>
+<p class="font-label-lg text-label-lg text-on-surface-variant mt-1">Cross-indemnification clauses are absent for third-party claims.</p>
+</div>
+</div>
+</div>
+<!-- Action Button -->
+<button class="mt-2 w-full py-2.5 flex items-center justify-center gap-2 border border-outline-variant rounded-lg text-champagne-gold font-label-lg text-label-lg hover:bg-champagne-gold/5 transition-all duration-200">
+<span>View Full Document</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Shared Component JSON Implementation) -->
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm rounded-full bg-surface-container/60 backdrop-blur-xl outline outline-1 outline-outline-variant/10 shadow-2xl flex justify-center px-6 z-50 py-3 md:hidden">
+<ul class="flex items-center justify-between w-full">
+<li>
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-12 h-12 hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+</a>
+</li>
+<li>
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-12 h-12 hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</a>
+</li>
+<li>
+<a aria-current="page" class="flex flex-col items-center justify-center bg-champagne-gold text-on-primary rounded-full w-12 h-12 shadow-[0_0_15px_rgba(229,213,176,0.3)] opacity-90 scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+</a>
+</li>
+<li>
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-12 h-12 hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+</a>
+</li>
+</ul>
+</nav>
+<!-- Chat Input Area (Floating above nav on mobile, fixed bottom on desktop) -->
+<div class="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-2xl z-40">
+<div class="bg-surface-container-highest/80 backdrop-blur-md rounded-2xl p-2 border border-outline flex items-center gap-2 shadow-xl shadow-black/50">
+<button class="p-2 text-on-surface-variant hover:text-champagne-gold transition-colors focus:outline-none rounded-full hover:bg-surface-bright/50">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<input class="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 font-body-md text-body-md py-2 px-1" placeholder="Message OnyxAI..." type="text"/>
+<button class="p-2 bg-champagne-gold text-on-primary rounded-xl hover:bg-champagne-gold/90 transition-colors focus:outline-none shadow-[0_0_10px_rgba(229,213,176,0.2)]">
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+</div>
+</body></html>

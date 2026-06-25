@@ -1,4 +1,9 @@
-import * as AuthSession from "expo-auth-session";
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  isSuccessResponse,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from "react";
@@ -8,6 +13,15 @@ import { ensureUserProfile, hasSupabaseEnv, supabase } from "@/lib/supabase";
 import type { SessionLike, UserProfile } from "@/types";
 
 WebBrowser.maybeCompleteAuthSession();
+
+// Google "Web application" OAuth client ID (the one configured as the Google
+// provider in Supabase). Native Google Sign-In mints an ID token with this as
+// its audience, which Supabase then verifies via signInWithIdToken.
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
+  "1067028491300-moe4lqe7ued9oa66mqcf5ku3l4qgf7lc.apps.googleusercontent.com";
+
+const authUrlCompletions = new Map<string, Promise<boolean>>();
 
 function getWebRedirectUrl() {
   // On web, construct the callback URL directly from the current origin
@@ -50,6 +64,71 @@ function toSessionLike(session: NonNullable<Awaited<ReturnType<NonNullable<typeo
     },
     accessToken: session.access_token,
   };
+}
+
+function getAuthParamsFromUrl(url: string) {
+  const [urlWithoutHash, hash = ""] = url.split("#");
+  const queryStart = urlWithoutHash.indexOf("?");
+  const query = queryStart >= 0 ? urlWithoutHash.slice(queryStart + 1) : "";
+  const queryParams = new URLSearchParams(query);
+  const hashParams = new URLSearchParams(hash);
+
+  const getParam = (key: string) => queryParams.get(key) ?? hashParams.get(key);
+
+  return {
+    error: getParam("error"),
+    errorDescription: getParam("error_description"),
+    code: getParam("code"),
+    accessToken: getParam("access_token"),
+    refreshToken: getParam("refresh_token"),
+  };
+}
+
+function isAuthCallbackUrl(url: string) {
+  return url.includes("/auth/callback") || url.startsWith("closedai://auth/callback");
+}
+
+async function completeAuthFromUrl(url: string, client: NonNullable<typeof supabase>) {
+  const { error, errorDescription, code, accessToken, refreshToken } = getAuthParamsFromUrl(url);
+
+  if (errorDescription || error) {
+    throw new Error(errorDescription ?? error ?? "Could not complete sign-in");
+  }
+
+  if (code) {
+    const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
+    if (exchangeError) {
+      throw exchangeError;
+    }
+    return true;
+  }
+
+  if (accessToken && refreshToken) {
+    const { error: sessionError } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (sessionError) {
+      throw sessionError;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+async function completeAuthFromUrlOnce(url: string, client: NonNullable<typeof supabase>) {
+  const existing = authUrlCompletions.get(url);
+  if (existing) {
+    return existing;
+  }
+
+  const completion = completeAuthFromUrl(url, client).catch((error) => {
+    authUrlCompletions.delete(url);
+    throw error;
+  });
+  authUrlCompletions.set(url, completion);
+  return completion;
 }
 
 export function useAuth() {
@@ -104,46 +183,48 @@ function useProvideAuth(): AuthContextValue {
         return;
       }
 
-      const searchParams = new URLSearchParams(window.location.search);
-      const code = searchParams.get("code");
-      const errorDescription =
-        searchParams.get("error_description") ??
-        searchParams.get("error") ??
-        new URLSearchParams(window.location.hash.replace(/^#/, "")).get("error_description");
-
-      if (errorDescription) {
-        setAuthError(errorDescription);
-        clearWebAuthUrl();
-        return;
-      }
-
-      if (code) {
-        const { error } = await client.auth.exchangeCodeForSession(code);
-        if (error) {
-          throw error;
-        }
-        clearWebAuthUrl();
-        return;
-      }
-
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-      if (accessToken && refreshToken) {
-        const { error } = await client.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (error) {
-          throw error;
-        }
+      const completed = await completeAuthFromUrl(window.location.href, client);
+      if (completed) {
         clearWebAuthUrl();
       }
     }
 
+    async function completePendingNativeAuth(url: string) {
+      if (!isAuthCallbackUrl(url)) {
+        return false;
+      }
+
+      setAuthError(null);
+      const completed = await completeAuthFromUrlOnce(url, client);
+      if (!completed) {
+        return false;
+      }
+
+      const { data, error } = await client.auth.getSession();
+      if (error) {
+        throw error;
+      }
+
+      if (!mounted) {
+        return true;
+      }
+
+      const nextSession = data.session ? toSessionLike(data.session) : null;
+      setSession(nextSession);
+      setIsLoading(false);
+      return true;
+    }
+
     async function loadSession() {
       setAuthError(null);
-      await completePendingWebAuth();
+      if (Platform.OS === "web") {
+        await completePendingWebAuth();
+      } else {
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+          await completePendingNativeAuth(initialUrl);
+        }
+      }
 
       const { data, error } = await client.auth.getSession();
       if (error) {
@@ -219,9 +300,26 @@ function useProvideAuth(): AuthContextValue {
       }
     });
 
+    const linkingSubscription =
+      Platform.OS === "web"
+        ? null
+        : Linking.addEventListener("url", ({ url }) => {
+            completePendingNativeAuth(url).catch((error) => {
+              if (!mounted) {
+                return;
+              }
+              setSession(null);
+              setProfile(null);
+              setIsProfileLoading(false);
+              setAuthError(error instanceof Error ? error.message : "Could not complete sign-in");
+              setIsLoading(false);
+            });
+          });
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      linkingSubscription?.remove();
     };
   }, []);
 
@@ -238,9 +336,6 @@ function useProvideAuth(): AuthContextValue {
         provider: "google",
         options: {
           redirectTo,
-          queryParams: {
-            prompt: "select_account",
-          },
         },
       });
       if (error) {
@@ -249,66 +344,45 @@ function useProvideAuth(): AuthContextValue {
       return;
     }
 
-    const redirectTo = AuthSession.makeRedirectUri({
-      scheme: "closedai",
-      path: "auth/callback",
+    // Native (Android/iOS): use the native Google account picker via Play
+    // Services instead of a browser-based OAuth flow. The Custom Tab web flow
+    // renders a blank page in emulators and is fragile on device; native
+    // sign-in + signInWithIdToken is Supabase's recommended path for React Native.
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      scopes: ["profile", "email"],
     });
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          prompt: "select_account",
-        },
-        skipBrowserRedirect: true,
-      },
-    });
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-    if (error) {
-      throw error;
+    let response;
+    try {
+      response = await GoogleSignin.signIn();
+    } catch (signInError) {
+      if (isErrorWithCode(signInError) && signInError.code === statusCodes.SIGN_IN_CANCELLED) {
+        throw new Error("Google sign-in was cancelled");
+      }
+      throw signInError;
     }
 
-    if (!data?.url) {
-      throw new Error("Supabase did not return an OAuth URL");
-    }
-
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type !== "success" || !result.url) {
+    if (!isSuccessResponse(response)) {
       throw new Error("Google sign-in was cancelled");
     }
 
-    const url = new URL(result.url);
-    const code = url.searchParams.get("code");
-    const errorDescription = url.searchParams.get("error_description");
-
-    if (errorDescription) {
-      throw new Error(errorDescription);
+    const idToken = response.data.idToken;
+    if (!idToken) {
+      throw new Error("Google did not return an ID token");
     }
 
-    if (code) {
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        throw exchangeError;
-      }
-      return;
-    }
+    const { error: idTokenError } = await supabase.auth.signInWithIdToken({
+      provider: "google",
+      token: idToken,
+    });
 
-    const hashParams = new URLSearchParams(result.url.split("#")[1] ?? "");
-    const accessToken = hashParams.get("access_token");
-    const refreshToken = hashParams.get("refresh_token");
-    if (accessToken && refreshToken) {
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (sessionError) {
-        throw sessionError;
-      }
-      return;
+    if (idTokenError) {
+      throw idTokenError;
     }
-
-    throw new Error("Could not complete Google sign-in");
+    // onAuthStateChange picks up the new session and routes into the app.
   }
 
   async function signInWithEmail(email: string, password: string) {
@@ -345,6 +419,13 @@ function useProvideAuth(): AuthContextValue {
     if (!hasSupabaseEnv || !supabase) return;
 
     await supabase.auth.signOut();
+    if (Platform.OS !== "web") {
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // ignore — user may not have signed in via Google
+      }
+    }
     setProfile(null);
     setIsProfileLoading(false);
   }

@@ -14,7 +14,7 @@ export default function AuthCallbackScreen() {
     return <Redirect href="/" />;
   }
 
-  if (isLoading || params.code) {
+  if (!authError && (isLoading || params.code)) {
     return (
       <View
         style={{

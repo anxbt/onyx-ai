@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OnyxAI - Deep Research Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "secondary-fixed": "#e9ddff",
+                "on-surface": "#e5e2e3",
+                "on-secondary-fixed": "#23005c",
+                "inverse-surface": "#e5e2e3",
+                "on-primary-fixed-variant": "#574500",
+                "primary-fixed": "#ffe088",
+                "primary-fixed-dim": "#e9c349",
+                "tertiary-fixed-dim": "#c6c6c7",
+                "surface": "#131314",
+                "secondary-fixed-dim": "#d0bcff",
+                "surface-variant": "#353436",
+                "error": "#ffb4ab",
+                "outline-variant": "#4d4635",
+                "outline": "#99907c",
+                "on-surface-variant": "#d0c5af",
+                "primary-container": "#d4af37",
+                "error-container": "#93000a",
+                "surface-container-highest": "#353436",
+                "on-tertiary-container": "#444546",
+                "surface-container-lowest": "#0e0e0f",
+                "surface-container-low": "#1c1b1c",
+                "on-background": "#e5e2e3",
+                "on-secondary-container": "#c4abff",
+                "on-primary-container": "#554300",
+                "surface-bright": "#3a393a",
+                "inverse-on-surface": "#313031",
+                "on-error-container": "#ffdad6",
+                "tertiary": "#cececf",
+                "surface-dim": "#131314",
+                "on-secondary-fixed-variant": "#5516be",
+                "on-tertiary": "#2f3132",
+                "surface-tint": "#e9c349",
+                "tertiary-fixed": "#e2e2e3",
+                "secondary-container": "#571bc1",
+                "on-primary-fixed": "#241a00",
+                "surface-container-high": "#2a2a2b",
+                "surface-container": "#201f20",
+                "primary": "#f2ca50",
+                "on-error": "#690005",
+                "secondary": "#d0bcff",
+                "inverse-primary": "#735c00",
+                "tertiary-container": "#b2b3b4",
+                "on-tertiary-fixed": "#1a1c1d",
+                "on-primary": "#3c2f00",
+                "on-tertiary-fixed-variant": "#454748",
+                "background": "#131314",
+                "on-secondary": "#3c0091"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "unit": "4px",
+                "max-width-content": "1200px",
+                "gutter": "16px",
+                "section-gap": "48px",
+                "container-padding": "24px"
+        },
+        "fontFamily": {
+                "body-md": [
+                        "Inter"
+                ],
+                "body-lg": [
+                        "Inter"
+                ],
+                "label-sm": [
+                        "Geist"
+                ],
+                "headline-md": [
+                        "Geist"
+                ],
+                "display-lg": [
+                        "Geist"
+                ],
+                "headline-lg-mobile": [
+                        "Geist"
+                ],
+                "headline-lg": [
+                        "Geist"
+                ]
+        },
+        "fontSize": {
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-sm": [
+                        "12px",
+                        {
+                                "lineHeight": "1",
+                                "letterSpacing": "0.1em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-md": [
+                        "20px",
+                        {
+                                "lineHeight": "1.4",
+                                "fontWeight": "500"
+                        }
+                ],
+                "display-lg": [
+                        "48px",
+                        {
+                                "lineHeight": "1.1",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "1.2",
+                                "fontWeight": "500"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "500"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        .glass-panel {
+            background: rgba(39, 39, 42, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+<script>
+        function toggleSidebar(id) {
+            const sidebar = document.getElementById(id);
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('md:flex');
+            if(id === 'right-sidebar') {
+                sidebar.classList.toggle('xl:flex');
+            }
+        }
+        function toggleMemory() {
+            const memoryContent = document.getElementById('memory-content');
+            const memoryIcon = document.getElementById('memory-icon');
+            memoryContent.classList.toggle('hidden');
+            if (memoryContent.classList.contains('hidden')) {
+                memoryIcon.innerText = 'expand_more';
+            } else {
+                memoryIcon.innerText = 'expand_less';
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen overflow-hidden flex selection:bg-primary selection:text-on-primary">
+<!-- Top Navigation (Mobile only placeholder, Hidden on md+) -->
+<div class="md:hidden fixed top-0 w-full h-16 bg-surface border-b border-white/5 flex items-center justify-between px-4 z-50">
+<span class="font-headline-md text-headline-md font-bold text-primary">OnyxAI</span>
+<span class="material-symbols-outlined text-on-surface">menu</span>
+</div>
+<!-- Layout Container -->
+<div class="flex w-full h-full pt-16 md:pt-0">
+<!-- Left: SideNavBar -->
+<aside class="hidden md:flex w-64 h-screen fixed left-0 top-0 bg-surface-container-low border-r border-white/10 flex-col py-6 px-4 gap-4 z-40 flex-shrink-0 transition-transform" id="left-sidebar">
+<!-- Brand -->
+<div class="flex items-center gap-3 px-2 mb-8">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold">O</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">OnyxAI</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-70">AI Research Engine</p>
+</div>
+<button class="ml-auto text-on-surface-variant hover:text-primary transition-colors" onclick="toggleSidebar('left-sidebar')">
+<span class="material-symbols-outlined text-sm">keyboard_double_arrow_left</span>
+</button>
+</div>
+<!-- New Action -->
+<div class="flex items-center justify-between px-2 mb-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2 group">
+<span class="material-symbols-outlined text-lg group-hover:scale-110 transition-transform">add</span>
+<span class="font-medium text-sm">New Chat</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors group">
+<span class="material-symbols-outlined text-lg group-hover:scale-110 transition-transform">post_add</span>
+</button>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 overflow-y-auto pr-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-on-surface transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Library</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-on-surface transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-on-surface transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span>Drafts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-on-surface-variant font-medium hover:bg-surface-variant/50 hover:text-on-surface transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<!-- Thread History Section -->
+<div class="mt-8 mb-2 px-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Recent Threads</span>
+</div>
+<div class="space-y-0.5">
+<a class="block px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 rounded truncate transition-colors" href="#">Deep Research Engine</a>
+<a class="block px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 rounded truncate transition-colors" href="#">Credit Usage Audit</a>
+<a class="block px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 rounded truncate transition-colors" href="#">Market Analysis Q3</a>
+<a class="block px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 rounded truncate transition-colors" href="#">Architecture Review</a>
+</div>
+</nav>
+<!-- User Profile Bottom -->
+<div class="mt-auto pt-4 border-t border-white/5 flex items-center gap-3 px-2">
+<img alt="User Profile" class="w-8 h-8 rounded-full object-cover border border-white/10" data-alt="A sophisticated, high-contrast, minimalist headshot of a professional user in a sleek, dimly lit studio environment. The lighting is cinematic with subtle gold edge-lighting, fitting seamlessly into a premium dark-mode AI interface. The mood is calm and intelligent." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUnYXx2VYcZaBTykVuBetV6JFuDuDxFkTQMWgFxMcwZL2LzpaFOcVVD3IZE49v8Sgf76PWGy1ADuiDctXjJfaHX4f_kZr5k8XwjCEdReUwNkPK1JK655ynAiZ6bZQqouu37xu-53ltWEZJqU-k4mWF3wVjBHwrElKq1_-2j8Q5yjRvJnwX01XNu38NHli32BWNbOp0yv-KOrqKxgZVnrQNUQrX2goErqYpD8XW6uw4bNRJJ7PTil4w1vYxcgZnPfZ0__8ue6q1l3jB"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-on-surface truncate">Alex Chen</p>
+<p class="text-xs text-on-surface-variant truncate">Pro Tier</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer text-sm">more_vert</span>
+</div>
+</aside>
+<!-- Center: Main Content Area -->
+<main class="flex-1 flex flex-col h-full md:ml-64 relative bg-[#0A0A0B] overflow-hidden transition-all duration-300">
+<!-- Top Bar for full screen toggle -->
+<div class="absolute top-4 left-4 z-50">
+<button class="w-8 h-8 rounded-lg bg-surface-container-low border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors" onclick="toggleSidebar('left-sidebar'); toggleSidebar('right-sidebar');">
+<span class="material-symbols-outlined text-sm">fullscreen</span>
+</button>
+</div>
+<!-- Scrollable Workspace -->
+<div class="flex-1 overflow-y-auto px-4 md:px-container-padding pb-32">
+<div class="max-w-[900px] mx-auto pt-12 md:pt-16 pb-12">
+<!-- Conversation Stream -->
+<div class="space-y-section-gap">
+<!-- User Message -->
+<div class="flex gap-4 items-start max-w-3xl ml-auto">
+<div class="flex-1 bg-surface-container-high rounded-2xl rounded-tr-sm p-4 border border-white/5">
+<p class="font-body-lg text-body-lg text-on-surface">Show me what a research answer looks like for the new compliance guidelines regarding remote worker contracts.</p>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-low border border-white/10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">person</span>
+</div>
+</div>
+<!-- AI Response Block -->
+<div class="flex gap-4 items-start max-w-4xl mr-auto relative">
+<div class="w-8 h-8 mt-1 rounded-full bg-surface-container-high border border-white/10 flex items-center justify-center flex-shrink-0 text-on-surface">
+<span class="material-symbols-outlined text-[18px]">temp_preferences_custom</span>
+</div>
+<div class="flex-1 space-y-6">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-sm font-medium text-on-surface">Qwen3.6 Plus</span>
+<span class="text-xs text-on-surface-variant/40 ml-1">· Synthesized from 4 sources</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed mt-1">
+                                    Based on the latest compliance updates, remote worker contracts require specific structural changes to liability and migration clauses. Here is the synthesized evidence:
+                                </p>
+<!-- Evidence Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+<div class="bg-[#161618] border border-white/10 rounded-lg p-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-xs text-primary/70">description</span>
+<span class="text-xs font-medium text-primary/70">Worker Search Contract</span>
+</div>
+<p class="text-sm text-on-surface mb-3 line-clamp-3">Section 4.2 mandates that all distributed liability must be explicitly defined per jurisdiction rather than falling back to headquarters location.</p>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant opacity-60 group-hover:opacity-100 transition-opacity">
+<span>Confidence: High</span>
+<span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</div>
+</div>
+<div class="bg-[#161618] border border-white/10 rounded-lg p-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-xs text-primary/70">gavel</span>
+<span class="text-xs font-medium text-primary/70">Migration Section 7</span>
+</div>
+<p class="text-sm text-on-surface mb-3 line-clamp-3">Cross-border data transit for remote employees must adhere to localized privacy frameworks prior to execution of employment agreements.</p>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant opacity-60 group-hover:opacity-100 transition-opacity">
+<span>Confidence: High</span>
+<span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</div>
+</div>
+</div>
+<div class="flex gap-2 mt-4">
+<button class="px-3 py-1.5 rounded-full border border-white/10 bg-transparent hover:bg-white/5 text-xs text-on-surface-variant flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">content_copy</span> Copy
+                                     </button>
+<button class="px-3 py-1.5 rounded-full border border-white/10 bg-transparent hover:bg-white/5 text-xs text-on-surface-variant flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">thumb_up</span>
+</button>
+<button class="px-3 py-1.5 rounded-full border border-white/10 bg-transparent hover:bg-white/5 text-xs text-on-surface-variant flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating Chat Input -->
+<div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[800px] z-20">
+<div class="glass-panel rounded-2xl p-2 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-end gap-2 transition-all focus-within:border-primary/50 relative">
+<button class="w-10 h-10 rounded-xl bg-transparent hover:bg-white/5 flex items-center justify-center text-on-surface-variant transition-colors mb-0.5">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<textarea class="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant/50 resize-none py-3 px-2 focus:ring-0 text-sm max-h-32 overflow-y-auto" placeholder="Ask follow-up or refine query..." rows="1"></textarea>
+<button class="w-10 h-10 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface flex items-center justify-center transition-colors mb-0.5 border border-white/10">
+<span class="material-symbols-outlined text-sm">arrow_upward</span>
+</button>
+</div>
+<div class="text-center mt-2">
+<span class="text-[10px] text-on-surface-variant/50">OnyxAI may produce inaccurate information about people, places, or facts.</span>
+</div>
+</div>
+</main>
+<!-- Right: Context Sidebar -->
+<aside class="hidden xl:flex w-80 h-screen fixed right-0 top-0 bg-[#0A0A0B] border-l border-white/10 flex-col pt-6 pb-6 px-4 gap-6 z-30 transition-transform" id="right-sidebar">
+<div class="flex justify-end">
+<button class="text-on-surface-variant hover:text-primary transition-colors" onclick="toggleSidebar('right-sidebar')">
+<span class="material-symbols-outlined text-sm">keyboard_double_arrow_right</span>
+</button>
+</div>
+<!-- Facts / Memory -->
+<div class="flex-1 overflow-y-auto">
+<div class="flex items-center justify-between mb-4 mt-2 cursor-pointer hover:text-on-surface text-on-surface-variant transition-colors" onclick="toggleMemory()">
+<h3 class="text-xs font-semibold uppercase tracking-wider">Session Memory</h3>
+<span class="material-symbols-outlined text-sm" id="memory-icon">expand_less</span>
+</div>
+<div class="space-y-2" id="memory-content">
+<div class="p-3 bg-[#161618] rounded-lg border border-white/5 text-sm">
+<span class="block text-xs text-primary/80 mb-1 font-medium">Constraint</span>
+<p class="text-on-surface text-xs leading-relaxed">Focus exclusively on EU jurisdictions.</p>
+</div>
+<div class="p-3 bg-[#161618] rounded-lg border border-white/5 text-sm">
+<span class="block text-xs text-on-surface-variant mb-1 font-medium">Entity Focus</span>
+<p class="text-on-surface text-xs leading-relaxed">Remote Workers, Independent Contractors.</p>
+</div>
+</div>
+</div>
+<!-- Trust Layer Widget -->
+<div class="glass-panel p-4 rounded-xl border border-white/10 mt-auto">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Trust Layer</h3>
+<span class="material-symbols-outlined text-xs text-on-surface-variant">verified</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs text-on-surface-variant mb-1.5">
+<span>Factuality Score</span>
+<span class="text-on-surface font-medium">94%</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
+<div class="bg-primary/70 h-full rounded-full" style="width: 94%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs text-on-surface-variant mb-1.5">
+<span>Source Relevance</span>
+<span class="text-on-surface font-medium">88%</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
+<div class="bg-primary/70 h-full rounded-full" style="width: 88%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Artifacts Preview -->
+<div class="border-t border-white/10 pt-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Generated Artifacts</h3>
+<span class="material-symbols-outlined text-xs text-on-surface-variant">category</span>
+</div>
+<div class="h-24 bg-surface-container-low border border-white/5 rounded-lg flex items-center justify-center cursor-pointer hover:bg-surface-variant/30 transition-colors group relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="text-center relative z-10">
+<span class="material-symbols-outlined text-on-surface-variant mb-1 group-hover:text-primary transition-colors text-2xl">table_chart</span>
+<p class="text-xs text-on-surface-variant group-hover:text-on-surface transition-colors">Compliance Matrix.csv</p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</body></html>
