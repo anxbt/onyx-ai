@@ -1,0 +1,42 @@
+{
+  "name": "onyxai-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5174",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "smoke:render": "node scripts/smoke.mjs --render",
+    "smoke:live": "node scripts/smoke.mjs --live --headed"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter-tight": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/react-query": "^5.101.0",
+    "katex": "^0.17.0",
+    "lucide-react": "^0.468.0",
+    "mermaid": "^11.15.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.30.2",
+    "react-syntax-highlighter": "^16.1.1",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@vitejs/plugin-react": "^5.1.1",
+    "playwright": "^1.61.0",
+    "typescript": "~5.9.2",
+    "vite": "^7.2.7",
+    "vite-tsconfig-paths": "^6.1.1"
+  }
+}

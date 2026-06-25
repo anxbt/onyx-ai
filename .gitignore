@@ -4,9 +4,24 @@ node_modules/
 dist/
 web-build/
 .env
+*.local
+.DS_Store
+*.apk
+*.aab
 worker/.dev.vars
 .tmp-expo/
 .tmp-expo55/
+pewdie-pie/
+
+# Web frontend local artifacts
+web/node_modules/
+web/dist/
+web/tmp/
+web/.env
+web/*.local
+
+# Supabase CLI local cache
+supabase/.temp/
 
 
 # @generated expo-cli sync-2b81b286409207a5da26e14c78851eb30d8ccbdb
