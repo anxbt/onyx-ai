@@ -60,7 +60,7 @@ export interface Message {
   attachments?: Attachment[];
   sources?: Source[];
   // Optional chain-of-thought trace produced by reasoning models (DeepSeek
-  // V4 Flash with effort, Kimi K2 Thinking always-on, Qwen3 thinking, etc.).
+  // V4 Pro with effort, Kimi K2 Thinking always-on, Qwen3 thinking, etc.).
   // OpenRouter normalizes this from `delta.reasoning_details[*].text` during
   // streaming. Persisted separately from `content` so it can be shown in a
   // collapsible panel without polluting message previews / summaries.

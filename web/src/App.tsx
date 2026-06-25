@@ -239,7 +239,7 @@ const fallbackConversations: Conversation[] = [
     title: "Credit Usage Audit",
     preview: "Projected spend by model and endpoint",
     updatedAt: "Yesterday",
-    model: "DeepSeek V4 Flash",
+    model: "DeepSeek V4 Pro",
     tokenCount: 0,
     isArchived: false,
     isPinned: false,

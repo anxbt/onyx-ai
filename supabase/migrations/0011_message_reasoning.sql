@@ -1,5 +1,5 @@
 -- Section 7c: persist the reasoning trace from thinking-capable models
--- (DeepSeek V4 Flash with effort, Kimi K2 Thinking, Qwen3 thinking, etc.).
+-- (DeepSeek V4 Pro with effort, Kimi K2 Thinking, Qwen3 thinking, etc.).
 -- Stored separately from `content` so the visible answer can be summarized
 -- and previewed without pulling in the trace.
 --

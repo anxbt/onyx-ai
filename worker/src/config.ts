@@ -23,18 +23,18 @@ export const CURATED_MODELS = [
       "Free default. Strong at code, agents, and complex instructions. Provider may log messages for training.",
   },
   {
-    id: "deepseek/deepseek-v4-flash",
-    displayName: "DeepSeek V4 Flash",
+    id: "deepseek/deepseek-v4-pro",
+    displayName: "DeepSeek V4 Pro",
     provider: "DeepSeek",
     role: "paid-default",
     modality: "text",
     supportsReasoning: true,
     isFree: false,
-    inputCostPerMToken: 0.0983,
-    outputCostPerMToken: 0.1966,
+    inputCostPerMToken: 0.435,
+    outputCostPerMToken: 0.87,
     contextWindow: 1000000,
-    maxOutput: 16384,
-    description: "Paid default. Verified reasoning levels (high, xhigh). No training data collection.",
+    maxOutput: 32768,
+    description: "Paid default. Stronger long-context reasoning and coding model. No training data collection.",
   },
   {
     id: "qwen/qwen3.6-plus",
@@ -65,24 +65,24 @@ export const CURATED_MODELS = [
     description: "Deep reasoning. Best for hard CS problems: compiler design, algorithms, proofs.",
   },
   {
-    id: "z-ai/glm-5.1",
-    displayName: "GLM-5.1",
-    provider: "Zhipu AI",
-    role: "structured",
+    id: "z-ai/glm-5.2",
+    displayName: "GLM-5.2",
+    provider: "Z.ai",
+    role: "agentic",
     modality: "text",
     supportsReasoning: true,
     isFree: false,
-    inputCostPerMToken: 0.98,
-    outputCostPerMToken: 3.08,
-    contextWindow: 202752,
-    maxOutput: 65536,
-    description: "Backup reasoning model. Broader knowledge, useful when Kimi is rate-limited.",
+    inputCostPerMToken: 0.95,
+    outputCostPerMToken: 3,
+    contextWindow: 1000000,
+    maxOutput: 131072,
+    description: "Agentic reasoning model with a 1M context window for long-horizon coding and automation.",
   },
   // Internal-only — not in the user-facing client MODELS, but referenced by
   // hardcoded ID in chat.ts (search classification, summarization), memory.ts
   // (memory extraction), search.ts (topic extraction), upload.ts (vision OCR).
   // Hidden from picker by Section 4 catalog cleanup; replacement with
-  // open-source equivalents (V4 Flash for text, Qwen3.6 Plus for vision)
+  // open-source equivalents (V4 Pro for text, Qwen3.6 Plus for vision)
   // deferred to the next round per the plan's Section 4b.
   {
     id: "google/gemini-2.5-flash-lite",

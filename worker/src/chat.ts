@@ -583,7 +583,7 @@ export async function handleChat(c: Context<HonoEnv>) {
       : "auto") as ResearchMode;
     // Per-request reasoning depth. Forwarded to OpenRouter as
     // `reasoning: { effort }`. OpenRouter normalizes across providers
-    // (DeepSeek V4 Flash supports up to "xhigh"; others vary). Omitted for
+    // (DeepSeek V4 Pro supports up to "xhigh"; others vary). Omitted for
     // models with always-on reasoning (Kimi K2 Thinking) — those models
     // reason regardless of this param, so the client passes undefined.
     const reasoningEffort = body.reasoningEffort as

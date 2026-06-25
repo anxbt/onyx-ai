@@ -28,10 +28,10 @@ Full architectural decisions in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Full imp
 | Tier | Model | OpenRouter ID | Context | Pricing $/M | Reasoning |
 |---|---|---|---|---|---|
 | Free default | **Owl Alpha** | `openrouter/owl-alpha` | 1M | $0 / $0 (caveat: provider logs for training) | effort param |
-| Paid default | DeepSeek V4 Flash | `deepseek/deepseek-v4-flash` | 1M | $0.0983 / $0.1966 | effort: low/med/high/xhigh |
+| Paid default | DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 1M | $0.435 / $0.87 | effort: low/med/high/xhigh |
 | Multimodal | Qwen3.6 Plus | `qwen/qwen3.6-plus` | 1M | $0.325 / $1.95 | effort param |
 | Deep reasoning | Kimi K2 Thinking | `moonshotai/kimi-k2-thinking` | 262K | $0.60 / $2.50 | always-on |
-| Backup reasoning | GLM-5.1 | `z-ai/glm-5.1` | 203K | $0.98 / $3.08 | effort param |
+| Agentic reasoning | GLM-5.2 | `z-ai/glm-5.2` | 1M | $0.95 / $3.00 | effort: high/xhigh |
 
 Internal-only (worker uses for OCR, classification, summarization): Gemini Flash Lite. Open-source replacement is on the roadmap.
 
@@ -52,7 +52,7 @@ Internal-only (worker uses for OCR, classification, summarization): Gemini Flash
 
 | Section | What | Files |
 |---|---|---|
-| Batch 3 catalog | Owl Alpha at top (free, 1M context, agentic positioning) + correct V4 Flash pricing/context + Kimi output price (2.4→2.5) + per-model `reasoningConfig` | `constants/models.ts`, `worker/src/config.ts`, `types/index.ts`, migration `0010` |
+| Batch 3 catalog | Owl Alpha at top (free, 1M context, agentic positioning) + DeepSeek V4 Pro paid default + GLM-5.2 agentic reasoning + Kimi output price (2.4→2.5) + per-model `reasoningConfig` | `constants/models.ts`, `worker/src/config.ts`, `types/index.ts`, migrations `0010` + `20260626091500` + `20260626093000` + `20260626093500` |
 | Batch 3 reasoning UI | 💡 Thinking chip in input bar + bottom-sheet picker with 6 effort levels (none/min/low/med/high/xhigh) + per-model defaults + zustand persistence | `components/chat/ReasoningEffortSheet.tsx` (NEW), `store/app.ts`, `lib/openrouter.ts`, `hooks/useChat.ts`, `worker/src/chat.ts` |
 | Section 7 | Time-of-day greeting (Good morning / Hello, night owl, etc.) + 3 starter prompt chips on every new chat | `lib/greeting.ts` (NEW), `constants/starter-prompts.ts` (NEW), `components/chat/NewChatGreeting.tsx` (NEW), `app/index.tsx` |
 | Section 5 | Auto-scroll in MessageList during streaming, with 80px manual-scroll-up threshold | `components/chat/MessageList.tsx` |
@@ -71,7 +71,7 @@ Internal-only (worker uses for OCR, classification, summarization): Gemini Flash
 | 2 | 1 | Two-tier search foundation: Firecrawl integration + bolt button + worker plumbing | ~half day |
 | 3 | 2 | Worker SSE hardening: explicit `Content-Type: text/event-stream`, `Cache-Control: no-cache, no-transform`, `X-Accel-Buffering: no`, keepalive ping every 15s | ~30 min |
 | 4 | 3c b/c | `<MathView>` WebView + KaTeX for actual math typesetting (currently math is positioned correctly but renders as raw LaTeX) | ~2-3 hrs |
-| 5 | 4b | Replace internal Gemini Flash Lite with DeepSeek V4 Flash (text) + Qwen3.6 Plus (vision). Closes the open-source positioning leak | ~half day |
+| 5 | 4b | Replace internal Gemini Flash Lite with DeepSeek V4 Pro (text) + Qwen3.6 Plus (vision). Closes the open-source positioning leak | ~half day |
 
 After those: **Chapter 2** (Perplexity-equivalent research engine, 5 days) and **Round 3** (Agent mode / tool use, ~1 week).
 
@@ -86,7 +86,7 @@ The v1.0.3 binary was built when `expo.runtimeVersion` was `"1.0.0"` (before we 
 Wrangler auth has expired on my local CLI; user runs `wrangler deploy` manually.
 
 ### `:free` model variants
-DeepSeek V4 Flash's `:free` variant on OpenRouter is non-functional. Use the paid variant (no `:free` suffix). It's still cheap (~$0.10/$0.20 per M tokens).
+DeepSeek V4 Flash's `:free` variant on OpenRouter is non-functional. The paid default now uses DeepSeek V4 Pro (`deepseek/deepseek-v4-pro`) instead.
 
 ### MATH placeholder format
 Math placeholders use bare `MATH_N` (e.g. `MATH_8`) — NOT `__MATH_N__`. The former survives markdown parsing; the latter gets eaten by markdown's bold syntax (`__foo__` = `<strong>foo</strong>`).
