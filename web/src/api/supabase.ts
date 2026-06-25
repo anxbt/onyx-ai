@@ -225,7 +225,7 @@ export async function fetchMessagesForConversation(conversationId: string): Prom
   const client = ensureSupabase();
   const { data, error } = await client
     .from("messages")
-    .select("id, conversation_id, role, content, model, has_attachment, attachments, sources, created_at")
+    .select("id, conversation_id, role, content, model, has_attachment, attachments, sources, research_trace, created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
 
@@ -242,6 +242,7 @@ export async function fetchMessagesForConversation(conversationId: string): Prom
     hasAttachment: row.has_attachment ?? false,
     attachments: Array.isArray(row.attachments) ? (row.attachments as Message["attachments"]) : undefined,
     sources: Array.isArray(row.sources) ? (row.sources as Source[]) : undefined,
+    researchTrace: Array.isArray(row.research_trace) ? (row.research_trace as Message["researchTrace"]) : undefined,
     createdAt: row.created_at,
   }));
 }

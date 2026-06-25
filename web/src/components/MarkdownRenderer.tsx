@@ -474,6 +474,23 @@ function HtmlArtifact({ code }: { code: string }) {
   return <iframe className="artifact-frame html-frame" sandbox="allow-scripts" srcDoc={code} title="HTML artifact" />;
 }
 
+function htmlTextContent(code: string) {
+  return code
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isHtmlArtifact(code: string) {
+  const trimmed = code.trim();
+  if (/\bdata-type=["']artifact["']/i.test(trimmed)) return true;
+  if (/<(?:!doctype|html|body|canvas|svg)\b/i.test(trimmed)) return true;
+  return /<\w+[^>]*\bstyle=["'][^"']+/i.test(trimmed) && htmlTextContent(trimmed).length > 0;
+}
+
 function PlotArtifact({ code }: { code: string }) {
   try {
     const parsed = JSON.parse(code) as {
@@ -642,6 +659,13 @@ export function MarkdownRenderer({ content, isStreaming = false, sources }: Mark
           li({ children }) {
             return <li>{renderCitationChildren(children, sources)}</li>;
           },
+          table({ children }) {
+            return (
+              <div className="md-table-scroll">
+                <table>{children}</table>
+              </div>
+            );
+          },
           th({ children }) {
             return <th>{renderTableCellChildren(children, sources)}</th>;
           },
@@ -658,7 +682,7 @@ export function MarkdownRenderer({ content, isStreaming = false, sources }: Mark
             if (language === "mermaid" || language === "flowchart") return <MermaidDiagram code={code} />;
             if (language === "chart") return <ChartArtifact code={code} />;
             if (language === "roadmap") return <RoadmapArtifact code={code} />;
-            if (language === "html") return <HtmlArtifact code={code} />;
+            if (language === "html" && isHtmlArtifact(code)) return <HtmlArtifact code={code} />;
             if (language === "geometry") return <GeometryArtifact code={code} />;
             if (language === "plot") return <PlotArtifact code={code} />;
             if (language === "molecule") return <MoleculeArtifact code={code} />;

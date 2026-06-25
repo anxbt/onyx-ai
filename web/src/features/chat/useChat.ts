@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { getEmbedding, extractMemoryFacts, summarizeConversation } from "@/api/worker";
 import { streamChatFromWorker } from "@/api/stream";
+import { getModelConfig } from "@/lib/models";
+import { useAppStore } from "@/store/app";
 import {
   createConversation,
   deleteMessagesAfter,
@@ -12,7 +14,20 @@ import {
   updateMessageContent,
 } from "@/api/supabase";
 import { estimateTokens } from "@/lib/tokens";
-import type { Attachment, Conversation, Message, ResearchTraceEvent, SessionLike, Source } from "@/types";
+import type { Attachment, Conversation, Message, ReasoningEffortLevel, ResearchMode, ResearchTraceEvent, SessionLike, Source } from "@/types";
+
+function upsertResearchTraceEvent(events: ResearchTraceEvent[], event: ResearchTraceEvent) {
+  const existingIndex = events.findIndex((item) => item.id === event.id);
+  if (existingIndex === -1) return [...events, event];
+  return events.map((item, index) => (index === existingIndex ? event : item));
+}
+
+function resolveReasoningEffort(modelId: string): ReasoningEffortLevel | undefined {
+  const config = getModelConfig(modelId).reasoningConfig;
+  if (!config || config.kind === "always-on") return undefined;
+  const stored = useAppStore.getState().reasoningEffortByModel[modelId];
+  return stored && config.levels.includes(stored) ? stored : config.default;
+}
 
 export function useChat({
   conversationId,
@@ -72,7 +87,7 @@ export function useChat({
     };
   }, [conversationId]);
 
-  async function sendMessage(content: string, attachments: Attachment[] = [], search?: { enableSearch: boolean; forceSearch: boolean }) {
+  async function sendMessage(content: string, attachments: Attachment[] = [], search?: { enableSearch: boolean; forceSearch: boolean; researchMode?: ResearchMode }) {
     const trimmed = content.trim();
     if (!trimmed || !session?.accessToken) {
       return;
@@ -141,7 +156,7 @@ export function useChat({
     token: string,
     history: Message[],
     options?: {
-      search?: { enableSearch: boolean; forceSearch: boolean };
+      search?: { enableSearch: boolean; forceSearch: boolean; researchMode?: ResearchMode };
       attachments?: Attachment[];
       summaryPreview?: string;
     },
@@ -157,6 +172,7 @@ export function useChat({
 
     let finalContent = "";
     let capturedSources: Source[] = [];
+    let capturedResearchTrace: ResearchTraceEvent[] = [];
     sawContentRef.current = false;
     setStreaming(true);
     setStreamingContent("");
@@ -171,6 +187,8 @@ export function useChat({
       attachments: options?.attachments?.length ? options.attachments : undefined,
       enableSearch: options?.search?.enableSearch,
       forceSearch: options?.search?.forceSearch,
+      researchMode: options?.search?.researchMode,
+      reasoningEffort: resolveReasoningEffort(modelId),
       callbacks: {
         onContent: (accumulated) => {
           sawContentRef.current = true;
@@ -181,6 +199,7 @@ export function useChat({
           capturedSources = sources;
         },
         onResearchStep: (event) => {
+          capturedResearchTrace = upsertResearchTraceEvent(capturedResearchTrace, event);
           setStreamingResearchTrace((current) => {
             const existingIndex = current.findIndex((item) => item.id === event.id);
             if (existingIndex === -1) return [...current, event];
@@ -196,6 +215,7 @@ export function useChat({
               content: contentToPush || "",
               model: modelId,
               sources: capturedSources.length ? capturedSources : undefined,
+              researchTrace: capturedResearchTrace.length ? capturedResearchTrace : undefined,
               createdAt: new Date().toISOString(),
             };
 

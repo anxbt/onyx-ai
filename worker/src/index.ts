@@ -30,6 +30,8 @@ app.post("/payments/webhook", handlePaymentWebhook);
 
 app.post("/payments/create-order", authMiddleware, handleCreatePaymentOrder);
 app.post("/payments/verify", authMiddleware, handleVerifyPayment);
+app.post("/api/create-order", authMiddleware, handleCreatePaymentOrder);
+app.post("/api/verify-payment", authMiddleware, handleVerifyPayment);
 app.post("/chat", authMiddleware, handleChat);
 app.post("/chat/summarize", authMiddleware, handleSummarize);
 app.post("/upload/analyze", authMiddleware, handleUploadAnalyze);

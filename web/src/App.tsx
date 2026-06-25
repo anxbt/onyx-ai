@@ -18,6 +18,7 @@ import {
   History,
   ImagePlus,
   Library,
+  Lightbulb,
   LockKeyhole,
   Mail,
   Menu,
@@ -39,7 +40,7 @@ import {
   X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type FocusEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import { FREE_MODEL_ID, MODELS as BASE_MODELS, TOP_UP_PACKS } from "@/constants/models";
@@ -66,6 +67,9 @@ import type {
   Message,
   ModelCatalogEntry,
   ModelConfig,
+  ReasoningConfig,
+  ReasoningEffortLevel,
+  ResearchMode,
   ResearchTraceEvent,
   SessionLike,
   UsageEvent,
@@ -78,10 +82,81 @@ type RazorpayInstance = {
   on: (event: "payment.failed", handler: (response: unknown) => void) => void;
 };
 
+const RAZORPAY_CHECKOUT_URL = "https://checkout.razorpay.com/v1/checkout.js";
+
+const researchModeOptions: Array<{ value: ResearchMode; label: string }> = [
+  { value: "auto", label: "Auto" },
+  { value: "web", label: "Search" },
+  { value: "deep", label: "Deep" },
+];
+
+function researchModeLabel(mode: ResearchMode) {
+  return researchModeOptions.find((option) => option.value === mode)?.label ?? "Auto";
+}
+
+const reasoningLevelLabels: Record<ReasoningEffortLevel, string> = {
+  none: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "XHigh",
+};
+
+function resolveReasoningLevel(model: Model, effortByModel: Record<string, ReasoningEffortLevel>) {
+  const config = model.reasoningConfig;
+  if (!config || config.kind === "always-on") return null;
+  const stored = effortByModel[model.id];
+  return stored && config.levels.includes(stored) ? stored : config.default;
+}
+
+function closeMenuOnBlur(event: FocusEvent<HTMLElement>, close: () => void) {
+  const nextTarget = event.relatedTarget;
+  if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+    close();
+  }
+}
+
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
   }
+}
+
+function loadRazorpayCheckout() {
+  if (window.Razorpay) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${RAZORPAY_CHECKOUT_URL}"]`);
+    const script = existingScript ?? document.createElement("script");
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Razorpay checkout did not load. Check your connection and try again."));
+    }, 8000);
+
+    const handleLoad = () => {
+      window.clearTimeout(timeout);
+      if (window.Razorpay) {
+        resolve();
+      } else {
+        reject(new Error("Razorpay checkout loaded without exposing the checkout API."));
+      }
+    };
+    const handleError = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("Could not load Razorpay checkout."));
+    };
+
+    script.addEventListener("load", handleLoad, { once: true });
+    script.addEventListener("error", handleError, { once: true });
+
+    if (!existingScript) {
+      script.src = RAZORPAY_CHECKOUT_URL;
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  });
 }
 
 function viewToPath(view: View) {
@@ -112,6 +187,7 @@ type Model = {
   cost: string;
   modality: "Text" | "Vision";
   isFree: boolean;
+  reasoningConfig?: ReasoningConfig;
 };
 
 function toUiModel(model: ModelConfig | ModelCatalogEntry): Model {
@@ -126,6 +202,7 @@ function toUiModel(model: ModelConfig | ModelCatalogEntry): Model {
     cost: model.isFree ? "Free" : `₹${outputCost.toFixed(2)} / 1M out`,
     modality: model.modality.includes("image") ? "Vision" : "Text",
     isFree: model.isFree,
+    reasoningConfig: model.reasoningConfig,
   };
 }
 
@@ -134,7 +211,15 @@ const staticModels: Model[] = BASE_MODELS.map(toUiModel);
 function mergeAvailableModels(catalogModels: ModelCatalogEntry[] | undefined): Model[] {
   const catalog = catalogModels?.map(toUiModel) ?? [];
   const catalogById = new Map(catalog.map((model) => [model.id, model]));
-  return staticModels.map((model) => catalogById.get(model.id) ?? model);
+  return staticModels.map((model) => {
+    const catalogModel = catalogById.get(model.id);
+    return catalogModel
+      ? {
+          ...catalogModel,
+          reasoningConfig: model.reasoningConfig,
+        }
+      : model;
+  });
 }
 
 const fallbackConversations: Conversation[] = [
@@ -281,6 +366,8 @@ function App() {
   const queryClient = useQueryClient();
   const activeModelId = useAppStore((state) => state.activeModelId);
   const setActiveModelId = useAppStore((state) => state.setActiveModelId);
+  const reasoningEffortByModel = useAppStore((state) => state.reasoningEffortByModel);
+  const setReasoningEffort = useAppStore((state) => state.setReasoningEffort);
   const activeConversationId = useAppStore((state) => state.activeConversationId);
   const setActiveConversationId = useAppStore((state) => state.setActiveConversationId);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -289,7 +376,7 @@ function App() {
   const [attachmentsEnabled, setAttachmentsEnabled] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const [searchEnabled, setSearchEnabled] = useState(true);
+  const [researchMode, setResearchMode] = useState<ResearchMode>("auto");
   const [conversationSearch, setConversationSearch] = useState("");
   const authMode = location.pathname === "/auth/sign-up" ? "sign-up" : "sign-in";
   const view = pathToView(location.pathname);
@@ -340,8 +427,15 @@ function App() {
       setView("credits");
       return;
     }
-    chat.sendMessage(trimmed, attachments, { enableSearch: searchEnabled, forceSearch: false }).catch(() => {});
+    chat.sendMessage(trimmed, attachments, {
+      enableSearch: true,
+      forceSearch: researchMode !== "auto",
+      researchMode,
+    }).catch(() => {});
     setDraft("");
+    if (researchMode !== "auto") {
+      setResearchMode("auto");
+    }
     attachments.forEach(revokeAttachmentObjectUrl);
     setAttachments([]);
   };
@@ -419,14 +513,16 @@ function App() {
     activeConversationId,
     profile,
     regenerateLastAssistant: chat.regenerateLastAssistant,
-    searchEnabled,
+    researchMode,
+    reasoningEffortByModel,
     selectedModel,
     selectedModelId,
     setAttachmentsEnabled,
     setAttachments,
     setConversationSearch,
     setDraft,
-    setSearchEnabled,
+    setResearchMode,
+    setReasoningEffort,
     setView,
     streaming: chat.streaming,
     streamingContent: chat.streamingContent,
@@ -785,7 +881,8 @@ type ChatProps = {
   messages: Message[];
   profile: UserProfile | null;
   regenerateLastAssistant: () => void;
-  searchEnabled: boolean;
+  researchMode: ResearchMode;
+  reasoningEffortByModel: Record<string, ReasoningEffortLevel>;
   selectedModel: Model;
   session: SessionLike | null;
   refreshProfile: () => Promise<UserProfile | null>;
@@ -799,7 +896,8 @@ type ChatProps = {
   setAttachments: (attachments: Attachment[]) => void;
   setConversationSearch: (value: string) => void;
   setDraft: (value: string) => void;
-  setSearchEnabled: (enabled: boolean) => void;
+  setResearchMode: (mode: ResearchMode) => void;
+  setReasoningEffort: (modelId: string, level: ReasoningEffortLevel) => void;
   setView: (view: View) => void;
   streaming: boolean;
   streamingContent: string;
@@ -815,10 +913,15 @@ type ChatProps = {
 
 function ChatStream(props: ChatProps) {
   const showEmptyState = !props.streaming && props.messages.length === 0;
+  const { scrollRef, scrollToBottom, updateVisibility, visible } = useScrollToBottomControl<HTMLElement>();
+
+  useEffect(() => {
+    updateVisibility();
+  }, [props.messages.length, props.streamingContent, props.streamingResearchTrace.length, showEmptyState, updateVisibility]);
 
   return (
     <>
-      <section className="desktop-stream" aria-live="polite">
+      <section className="desktop-stream" aria-live="polite" ref={scrollRef}>
         {props.error ? <p className="chat-error">{props.error}</p> : null}
         {showEmptyState ? <EmptyChatState conversations={props.conversations} onSuggestion={props.setDraft} /> : null}
         {props.messages.map((message) => (
@@ -850,13 +953,19 @@ function ChatStream(props: ChatProps) {
         ) : null}
       </section>
 
+      {visible ? (
+        <button className="scroll-bottom-button desktop-scroll-bottom" type="button" onClick={scrollToBottom} aria-label="Scroll to latest message">
+          <ChevronDown size={20} />
+        </button>
+      ) : null}
+
       <DesktopComposer {...props} />
     </>
   );
 }
 
 function ResearchTrace({ events }: { events: ResearchTraceEvent[] }) {
-  const visibleEvents = events.slice(-8);
+  const visibleEvents = events.slice(0, 12);
   const iconForStage = (stage: ResearchTraceEvent["stage"]) => {
     if (stage === "plan") return Database;
     if (stage === "search") return Search;
@@ -873,6 +982,7 @@ function ResearchTrace({ events }: { events: ResearchTraceEvent[] }) {
       <div className="research-trace-list">
         {visibleEvents.map((event) => {
           const Icon = iconForStage(event.stage);
+          const detail = [event.detail, event.query].filter(Boolean).join(" · ");
           return (
             <div className="research-trace-item" key={event.id}>
               <span className="research-trace-icon" aria-hidden="true">
@@ -880,7 +990,7 @@ function ResearchTrace({ events }: { events: ResearchTraceEvent[] }) {
               </span>
               <div>
                 <strong>{event.label}</strong>
-                {event.detail || event.query ? <small>{event.detail ?? event.query}</small> : null}
+                {detail ? <small>{detail}</small> : null}
               </div>
             </div>
           );
@@ -1030,6 +1140,7 @@ function MessageBubble({
           <strong>{selectedModel.name}</strong>
           <span>{message.sources?.length ? `Synthesized from ${message.sources.length} sources` : "Assistant response"}</span>
         </header>
+        {message.researchTrace?.length ? <ResearchTrace events={message.researchTrace} /> : null}
         <div className="answer-copy">
           <MarkdownRenderer content={body} isStreaming={message.id === "streaming"} sources={message.sources} />
         </div>
@@ -1313,17 +1424,181 @@ function DesktopRail({
   );
 }
 
+function SearchModeControl({
+  compact = false,
+  mode,
+  setMode,
+}: {
+  compact?: boolean;
+  mode: ResearchMode;
+  setMode: (mode: ResearchMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = researchModeOptions.find((option) => option.value === mode) ?? researchModeOptions[0];
+
+  return (
+    <span
+      className={[
+        "mode-control search-mode-control",
+        compact ? "is-compact" : "",
+        mode === "auto" ? "is-auto" : "is-on",
+        open ? "is-open" : "",
+      ].filter(Boolean).join(" ")}
+      onBlur={(event) => closeMenuOnBlur(event, () => setOpen(false))}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`Research mode: ${selected.label}`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Globe2 size={compact ? 18 : 16} />
+        {compact ? null : <span>{selected.label}</span>}
+        <ChevronDown size={compact ? 14 : 13} />
+      </button>
+      {open ? (
+        <span className="mode-menu" role="menu">
+          {researchModeOptions.map((option) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={mode === option.value}
+              className={mode === option.value ? "is-selected" : undefined}
+              key={option.value}
+              onClick={() => {
+                setMode(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function ReasoningModeControl({
+  compact = false,
+  effortByModel,
+  model,
+  setReasoningEffort,
+}: {
+  compact?: boolean;
+  effortByModel: Record<string, ReasoningEffortLevel>;
+  model: Model;
+  setReasoningEffort: (modelId: string, level: ReasoningEffortLevel) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const config = model.reasoningConfig;
+  if (!config) return null;
+
+  if (config.kind === "always-on") {
+    return (
+      <span className={["mode-control reasoning-mode-control is-always-on", compact ? "is-compact" : ""].filter(Boolean).join(" ")}>
+        <button type="button" aria-label="Reasoning is always on for this model" disabled>
+          <Lightbulb size={compact ? 18 : 16} />
+          {compact ? null : <span>Always</span>}
+        </button>
+      </span>
+    );
+  }
+
+  const selected = resolveReasoningLevel(model, effortByModel) ?? config.default;
+  const selectedLabel = reasoningLevelLabels[selected];
+
+  return (
+    <span
+      className={[
+        "mode-control reasoning-mode-control",
+        compact ? "is-compact" : "",
+        selected === "none" ? "is-auto" : "is-on",
+        open ? "is-open" : "",
+      ].filter(Boolean).join(" ")}
+      onBlur={(event) => closeMenuOnBlur(event, () => setOpen(false))}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`Reasoning effort: ${selectedLabel}`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Lightbulb size={compact ? 18 : 16} />
+        {compact ? null : <span>{selectedLabel}</span>}
+        <ChevronDown size={compact ? 14 : 13} />
+      </button>
+      {open ? (
+        <span className="mode-menu" role="menu">
+          {config.levels.map((level) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={selected === level}
+              className={selected === level ? "is-selected" : undefined}
+              key={level}
+              onClick={() => {
+                setReasoningEffort(model.id, level);
+                setOpen(false);
+              }}
+            >
+              {reasoningLevelLabels[level]}
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function useScrollToBottomControl<T extends HTMLElement>() {
+  const scrollRef = useRef<T | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  const updateVisibility = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    setVisible(element.scrollHeight > element.clientHeight + 24 && distanceFromBottom > 220);
+  }, []);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    updateVisibility();
+    element.addEventListener("scroll", updateVisibility, { passive: true });
+    window.addEventListener("resize", updateVisibility);
+    return () => {
+      element.removeEventListener("scroll", updateVisibility);
+      window.removeEventListener("resize", updateVisibility);
+    };
+  }, [updateVisibility]);
+
+  const scrollToBottom = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+  }, []);
+
+  return { scrollRef, scrollToBottom, updateVisibility, visible };
+}
+
 function DesktopComposer({
   attachments,
   attachmentsEnabled,
   balanceDepleted,
   draft,
   onFilesSelected,
-  searchEnabled,
+  reasoningEffortByModel,
+  researchMode,
+  selectedModel,
   setAttachments,
   setAttachmentsEnabled,
   setDraft,
-  setSearchEnabled,
+  setReasoningEffort,
+  setResearchMode,
   streaming,
   submitMessage,
   uploadStatus,
@@ -1395,15 +1670,12 @@ function DesktopComposer({
           <button type="button" aria-label="Attach image" onClick={() => imageInputRef.current?.click()}>
             <ImagePlus size={16} />
           </button>
-          <button
-            type="button"
-            aria-label="Toggle web search"
-            aria-pressed={searchEnabled}
-            className={searchEnabled ? "is-on" : undefined}
-            onClick={() => setSearchEnabled(!searchEnabled)}
-          >
-            <Globe2 size={16} />
-          </button>
+          <SearchModeControl mode={researchMode} setMode={setResearchMode} />
+          <ReasoningModeControl
+            effortByModel={reasoningEffortByModel}
+            model={selectedModel}
+            setReasoningEffort={setReasoningEffort}
+          />
         </div>
         <label className="sr-only" htmlFor="message-input">Ask follow-up</label>
         <textarea
@@ -1739,42 +2011,80 @@ function CreditsPage({
   usageEvents: UsageEvent[];
 }) {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
 
   const startTopUp = async (packId: string) => {
+    if (isPaying) return;
     if (!session?.accessToken) {
       setPaymentStatus("Sign in before topping up credits.");
       return;
     }
-    if (!window.Razorpay) {
-      setPaymentStatus("Razorpay checkout has not loaded yet.");
-      return;
-    }
 
     try {
+      setIsPaying(true);
+      setPaymentStatus("Loading secure checkout…");
+      await loadRazorpayCheckout();
       setPaymentStatus("Creating payment order…");
       const order = await createOrder({ packId }, session.accessToken);
-      const checkout = new window.Razorpay({
-        key: order.keyId,
+      const checkoutKey = order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      let paymentCompleted = false;
+
+      if (!checkoutKey) {
+        throw new Error("Razorpay key id is missing.");
+      }
+
+      const Razorpay = window.Razorpay;
+      if (!Razorpay) {
+        throw new Error("Razorpay checkout is unavailable.");
+      }
+
+      const checkout = new Razorpay({
+        key: checkoutKey,
         order_id: order.orderId,
         amount: order.amount,
         currency: order.currency,
         name: "Closed AI",
+        description: "Credit top up",
+        prefill: {
+          name: session.user.displayName ?? "",
+          email: session.user.email ?? "",
+        },
+        modal: {
+          ondismiss: () => {
+            if (!paymentCompleted) {
+              setPaymentStatus("Payment cancelled. No credits were added.");
+              setIsPaying(false);
+            }
+          },
+        },
         handler: async (response: unknown) => {
           const payload = response as {
             razorpay_order_id: string;
             razorpay_payment_id: string;
             razorpay_signature: string;
           };
-          setPaymentStatus("Verifying payment…");
-          await verifyPayment(payload, session.accessToken as string);
-          await refreshProfile();
-          setPaymentStatus("Payment verified. Balance refreshed.");
+          paymentCompleted = true;
+          try {
+            setPaymentStatus("Verifying payment…");
+            await verifyPayment(payload, session.accessToken as string);
+            await refreshProfile();
+            setPaymentStatus("Payment verified. Balance refreshed.");
+          } catch (error) {
+            setPaymentStatus(error instanceof Error ? error.message : "Payment verification failed.");
+          } finally {
+            setIsPaying(false);
+          }
         },
       });
-      checkout.on("payment.failed", () => setPaymentStatus("Payment failed. No credits were added."));
+      checkout.on("payment.failed", (response) => {
+        const error = typeof response === "object" && response && "error" in response ? (response as { error?: { description?: string } }).error : null;
+        setPaymentStatus(error?.description ?? "Payment failed. No credits were added.");
+        setIsPaying(false);
+      });
       checkout.open();
     } catch (error) {
       setPaymentStatus(error instanceof Error ? error.message : "Could not start payment.");
+      setIsPaying(false);
     }
   };
 
@@ -1783,7 +2093,7 @@ function CreditsPage({
       <header className="settings-hero">
         <p>Credits</p>
         <h1>Balance and Top Up</h1>
-        <span>Razorpay checkout will connect here once Worker payment endpoints are configured.</span>
+        <span>Top up credits securely with Razorpay Standard Checkout.</span>
       </header>
       <div className="feature-grid">
         <article className="balance-card">
@@ -1793,7 +2103,7 @@ function CreditsPage({
         </article>
         {paymentStatus ? <p className="payment-status">{paymentStatus}</p> : null}
         {TOP_UP_PACKS.map((pack) => (
-          <button className="pack-card" type="button" key={pack.label} onClick={() => startTopUp(pack.id)}>
+          <button className="pack-card" type="button" key={pack.label} onClick={() => startTopUp(pack.id)} disabled={isPaying}>
             <CreditCard size={20} />
             <span>
               <strong>{pack.label}</strong>
@@ -2289,8 +2599,15 @@ function MobileLayout({
 
 function MobileChat(props: ChatProps) {
   const showEmptyState = !props.streaming && props.messages.length === 0;
+  const { scrollRef, scrollToBottom, updateVisibility, visible } = useScrollToBottomControl<HTMLElement>();
+
+  useEffect(() => {
+    updateVisibility();
+  }, [props.messages.length, props.streamingContent, props.streamingResearchTrace.length, showEmptyState, updateVisibility]);
+
   return (
-    <main className="mobile-thread" aria-label="Mobile chat">
+    <>
+    <main className="mobile-thread" aria-label="Mobile chat" ref={scrollRef}>
       {props.error ? <p className="chat-error">{props.error}</p> : null}
       {showEmptyState ? <EmptyChatState conversations={props.conversations} onSuggestion={props.setDraft} /> : null}
       {props.messages.map((message) =>
@@ -2309,6 +2626,7 @@ function MobileChat(props: ChatProps) {
                 <Sparkles size={18} />
                 <span>Closed Analysis · {props.selectedModel.name}</span>
               </header>
+              {message.researchTrace?.length ? <ResearchTrace events={message.researchTrace} /> : null}
               <MarkdownRenderer content={body} sources={message.sources} />
               {suggestions.length ? (
                 <div className="suggestion-row" aria-label="Suggestions">
@@ -2334,6 +2652,12 @@ function MobileChat(props: ChatProps) {
         </section>
       ) : null}
     </main>
+    {visible ? (
+      <button className="scroll-bottom-button mobile-scroll-bottom" type="button" onClick={scrollToBottom} aria-label="Scroll to latest message">
+        <ChevronDown size={20} />
+      </button>
+    ) : null}
+    </>
   );
 }
 
@@ -2380,10 +2704,13 @@ function MobileComposer({
   balanceDepleted,
   draft,
   onFilesSelected,
-  searchEnabled,
+  reasoningEffortByModel,
+  researchMode,
+  selectedModel,
   setAttachmentsEnabled,
   setDraft,
-  setSearchEnabled,
+  setReasoningEffort,
+  setResearchMode,
   streaming,
   submitMessage,
 }: ChatProps) {
@@ -2421,13 +2748,17 @@ function MobileComposer({
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={searchEnabled ? "Message with search…" : "Message Closed AI…"}
+          placeholder={researchMode === "auto" ? "Message Closed AI…" : `${researchModeLabel(researchMode)} research…`}
           autoComplete="off"
         />
       </label>
-      <button type="button" aria-label="Toggle web search" aria-pressed={searchEnabled} onClick={() => setSearchEnabled(!searchEnabled)}>
-        <Globe2 size={23} />
-      </button>
+      <SearchModeControl compact mode={researchMode} setMode={setResearchMode} />
+      <ReasoningModeControl
+        compact
+        effortByModel={reasoningEffortByModel}
+        model={selectedModel}
+        setReasoningEffort={setReasoningEffort}
+      />
       <button type="submit" aria-label={streaming ? "Stop streaming" : balanceDepleted ? "Top up credits" : "Send"}>
         {streaming ? <StopCircle size={25} /> : <SendHorizontal size={25} />}
       </button>

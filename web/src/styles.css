@@ -2198,6 +2198,46 @@ input:focus-visible {
   color: var(--gold);
 }
 
+.research-mode,
+.mobile-research-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(24 24 27 / 0.8);
+  color: var(--text-muted);
+}
+
+.research-mode {
+  block-size: 34px;
+  padding-inline: 9px 7px;
+}
+
+.research-mode.is-on,
+.mobile-research-mode.is-on {
+  border-color: rgb(229 213 176 / 0.28);
+  background: rgb(229 213 176 / 0.08);
+  color: var(--gold);
+}
+
+.research-mode select,
+.mobile-research-mode select {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  outline: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.research-mode option,
+.mobile-research-mode option {
+  color: #111114;
+}
+
 .empty-chat-state {
   display: grid;
   gap: 18px;
@@ -2315,6 +2355,11 @@ input:focus-visible {
   align-items: center;
   gap: 12px;
   text-align: start;
+}
+
+.pack-card:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .pack-card strong,
@@ -3730,7 +3775,7 @@ input:focus-visible {
     inset-inline: max(12px, calc((100vw - 430px) / 2 + 12px));
     inset-block-end: 74px;
     z-index: 14;
-    grid-template-columns: 36px minmax(0, 1fr) 38px 42px;
+    grid-template-columns: 36px minmax(0, 1fr) 74px 42px;
     gap: 4px;
     min-block-size: 54px;
     border-radius: 17px;
@@ -3750,6 +3795,22 @@ input:focus-visible {
   .mobile-composer > button {
     inline-size: 36px;
     block-size: 40px;
+  }
+
+  .mobile-research-mode {
+    inline-size: 74px;
+    block-size: 40px;
+    gap: 3px;
+  }
+
+  .mobile-research-mode svg {
+    inline-size: 15px;
+    block-size: 15px;
+  }
+
+  .mobile-research-mode select {
+    max-inline-size: 48px;
+    font-size: 11px;
   }
 
   .mobile-composer > button[type="submit"] {
@@ -3790,6 +3851,270 @@ input:focus-visible {
 
   .mobile-composer > button {
     inline-size: 32px;
+  }
+
+  .mobile-composer > button[type="submit"] {
+    inline-size: 38px;
+  }
+}
+
+/* Search/reasoning controls, overflow hardening, and scroll affordance. */
+.mode-control {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-inline-size: 0;
+}
+
+.mode-control > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-inline-size: 0;
+  block-size: 34px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(24 24 27 / 0.8);
+  color: var(--text-muted);
+  padding-inline: 9px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mode-control.is-on > button,
+.mode-control.is-always-on > button {
+  border-color: rgb(229 213 176 / 0.28);
+  background: rgb(229 213 176 / 0.08);
+  color: var(--gold);
+}
+
+.mode-control > button:disabled {
+  cursor: default;
+  opacity: 0.82;
+}
+
+.mode-control.is-compact > button {
+  inline-size: 44px;
+  block-size: 38px;
+  gap: 1px;
+  padding-inline: 5px;
+}
+
+.mode-control.is-compact > button svg:last-child {
+  inline-size: 11px;
+  margin-inline-start: -1px;
+}
+
+.desktop-composer .mode-control > button {
+  inline-size: auto;
+  min-inline-size: 76px;
+  padding-inline: 10px 9px;
+}
+
+.desktop-composer .reasoning-mode-control > button {
+  min-inline-size: 92px;
+}
+
+.mode-menu {
+  position: absolute;
+  inset-block-end: calc(100% + 8px);
+  inset-inline-start: 0;
+  z-index: 30;
+  display: grid;
+  min-inline-size: 132px;
+  gap: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: #161618;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.42);
+  padding: 6px;
+}
+
+.mode-control.is-compact .mode-menu {
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+}
+
+.mode-menu button {
+  justify-content: flex-start;
+  inline-size: 100%;
+  block-size: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-soft);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: start;
+}
+
+.mode-menu button.is-selected,
+.mode-menu button:hover,
+.mode-menu button:focus-visible {
+  background: rgb(229 213 176 / 0.1);
+  color: var(--gold);
+}
+
+.desktop-stream,
+.mobile-thread,
+.answer-content,
+.answer-copy,
+.mobile-analysis,
+.markdown-body {
+  min-inline-size: 0;
+}
+
+.answer-copy,
+.mobile-analysis,
+.markdown-body,
+.markdown-body p,
+.markdown-body li,
+.markdown-body blockquote,
+.research-trace,
+.source-list a,
+.evidence-card,
+.evidence-body {
+  overflow-wrap: anywhere;
+}
+
+.md-table-scroll {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.md-table-scroll table {
+  min-inline-size: max-content;
+  border: 0;
+  border-radius: 0;
+}
+
+.markdown-body pre,
+.md-code,
+.artifact-frame,
+.source-list,
+.evidence-row {
+  max-inline-size: 100%;
+}
+
+.artifact-frame {
+  overflow: auto;
+}
+
+.mermaid-frame svg,
+.plot-frame svg,
+.molecule-frame svg,
+.geometry-frame {
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+.plot-frame,
+.molecule-frame,
+.chart-frame {
+  min-inline-size: 0;
+}
+
+.chart-frame div {
+  overflow-x: auto;
+}
+
+.source-list a {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.source-list img,
+.evidence-title img {
+  inline-size: 16px;
+  block-size: 16px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+}
+
+.evidence-row {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  inline-size: 100%;
+}
+
+.evidence-card,
+.evidence-title,
+.evidence-title span {
+  min-inline-size: 0;
+}
+
+.evidence-body {
+  max-inline-size: 100%;
+}
+
+.scroll-bottom-button {
+  position: fixed;
+  z-index: 25;
+  display: grid;
+  inline-size: 42px;
+  block-size: 42px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgb(22 22 24 / 0.92);
+  color: var(--gold);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.35);
+}
+
+.desktop-scroll-bottom {
+  inset-inline-end: max(26px, calc((100vw - 980px) / 2 + 18px));
+  inset-block-end: 142px;
+}
+
+.mobile-scroll-bottom {
+  inset-inline-end: max(18px, calc((100vw - 430px) / 2 + 18px));
+  inset-block-end: 142px;
+}
+
+@media (max-width: 1180px) {
+  .mobile-composer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-inline-size: 0;
+  }
+
+  .mobile-composer label {
+    flex: 1 1 auto;
+  }
+
+  .mobile-composer > button,
+  .mobile-composer .mode-control {
+    flex: 0 0 auto;
+  }
+
+  .mobile-composer > button,
+  .mobile-composer .mode-control > button {
+    inline-size: 44px;
+    block-size: 40px;
+  }
+
+  .mobile-composer > button[type="submit"] {
+    inline-size: 40px;
+  }
+
+  .mobile-thread {
+    overflow-x: clip;
+  }
+}
+
+@media (max-width: 380px) {
+  .mobile-composer {
+    gap: 4px;
+  }
+
+  .mobile-composer > button,
+  .mobile-composer .mode-control > button {
+    inline-size: 38px;
   }
 
   .mobile-composer > button[type="submit"] {

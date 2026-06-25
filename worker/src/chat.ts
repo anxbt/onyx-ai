@@ -54,35 +54,6 @@ function getLastUserContent(messages: Array<Record<string, unknown>>): string {
   return "";
 }
 
-async function classifySearchNeed(query: string, env: HonoEnv["Bindings"]): Promise<boolean> {
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://onyxai.app",
-        "X-Title": "OnyxAI",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "user",
-            content: `Does this query need real-time web search for current, accurate, or up-to-date information? Answer ONLY "yes" or "no": ${query}`,
-          },
-        ],
-        max_tokens: 3,
-      }),
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return data.choices?.[0]?.message?.content?.toLowerCase().includes("yes") ?? false;
-  } catch {
-    return false;
-  }
-}
-
 type ResearchTraceEvent = {
   id: string;
   stage: "plan" | "search" | "read" | "synthesize";
@@ -94,6 +65,20 @@ type ResearchTraceEvent = {
   title?: string;
 };
 
+type ResearchMode = "auto" | "web" | "deep" | "social" | "recent";
+
+type ResearchPhase = "discover" | "experience" | "depth";
+
+type ResearchPlan = {
+  id: string;
+  phase: ResearchPhase;
+  provider: string;
+  axis: string;
+  query: string;
+  includeDomains?: string[];
+  maxResults: number;
+};
+
 type TavilyResult = {
   title: string;
   url: string;
@@ -102,11 +87,52 @@ type TavilyResult = {
   favicon?: string;
 };
 
+type ResearchResult = TavilyResult & {
+  phase: ResearchPhase;
+  provider: string;
+  axis: string;
+  query: string;
+};
+
 const SOCIAL_INTENT_RE =
   /\b(last\s*30\s*days?|past\s*30\s*days?|recent|current|reddit|x\.com|twitter|hacker\s*news|\bhn\b|github|social|community|what\s+(people|developers|users)\s+(say|think)|sentiment|trending|trend)\b/i;
 
+const AUTO_SEARCH_INTENT_RE =
+  /\b(web\s+search|search\s+(the\s+)?web|look\s+up|browse|internet|online|latest|current|recent|today|this\s+week|last\s*30\s*days?|reddit|x\.com|twitter|hacker\s*news|\bhn\b|github|youtube|cite|citations?|sources?|pricing|changelog|release\s+notes|reviews?|hands[-\s]?on|complaints?|what\s+(people|developers|users)\s+(say|think)|sentiment|trending|trend)\b/i;
+
+const DEEP_RESEARCH_RE =
+  /\b(deep\s+research|research\s+mode|investigate|comprehensive|landscape|due\s+diligence|market|alternatives?|reviews?|experience|hands[-\s]?on|complaints?|trade[-\s]?offs?)\b/i;
+
 function hasSocialResearchIntent(query: string): boolean {
   return SOCIAL_INTENT_RE.test(query);
+}
+
+function hasAutoSearchIntent(query: string): boolean {
+  return AUTO_SEARCH_INTENT_RE.test(query);
+}
+
+function isForcedResearchMode(mode: ResearchMode) {
+  return mode !== "auto";
+}
+
+function hasDeepResearchIntent(query: string, mode: ResearchMode = "auto"): boolean {
+  if (mode === "web") return false;
+  if (mode === "deep" || mode === "social" || mode === "recent") return true;
+  return hasAutoSearchIntent(query) && (hasSocialResearchIntent(query) || DEEP_RESEARCH_RE.test(query));
+}
+
+function normalizeResearchTopic(query: string): string {
+  return query
+    .replace(/^\s*(deep\s+research|research\s+mode|last\s*30\s*days?\s+social\s+research)\s*:?\s*/i, "")
+    .replace(/\bwith\s+citations?\b/gi, "")
+    .replace(/\bcite\s+(every\s+)?(claim|source)s?\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 320) || query.slice(0, 320);
+}
+
+function compactSearchQuery(query: string): string {
+  return query.replace(/\s+/g, " ").trim().slice(0, 390);
 }
 
 function providerFromUrl(url: string): string {
@@ -132,25 +158,132 @@ function faviconFromUrl(url: string, provided?: string): string | undefined {
   }
 }
 
-function buildResearchQueries(query: string) {
-  if (!hasSocialResearchIntent(query)) {
-    return [{ provider: "Web", query, includeDomains: undefined as string[] | undefined, maxResults: 4 }];
+function hostFromUrl(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+function buildDiscoveryPlans(query: string, mode: ResearchMode): ResearchPlan[] {
+  const topic = normalizeResearchTopic(query);
+  if (!hasDeepResearchIntent(query, mode)) {
+    return [
+      {
+        id: "discover-web",
+        phase: "discover",
+        provider: "Web",
+        axis: "Fresh overview",
+        query: compactSearchQuery(topic),
+        maxResults: 4,
+      },
+    ];
   }
 
   return [
-    { provider: "Web", query, includeDomains: undefined as string[] | undefined, maxResults: 3 },
-    { provider: "Reddit", query, includeDomains: ["reddit.com"], maxResults: 3 },
-    { provider: "X", query, includeDomains: ["x.com", "twitter.com"], maxResults: 3 },
-    { provider: "Hacker News", query, includeDomains: ["news.ycombinator.com"], maxResults: 3 },
-    { provider: "GitHub", query, includeDomains: ["github.com"], maxResults: 2 },
+    {
+      id: "discover-overview",
+      phase: "discover",
+      provider: "Web",
+      axis: "Landscape and core claims",
+      query: compactSearchQuery(`${topic} overview comparison pricing limitations`),
+      maxResults: 3,
+    },
+    {
+      id: "discover-official",
+      phase: "discover",
+      provider: "Web",
+      axis: "Official docs and primary facts",
+      query: compactSearchQuery(`${topic} official docs pricing changelog release notes`),
+      maxResults: 3,
+    },
   ];
+}
+
+function buildExperiencePlans(query: string, mode: ResearchMode): ResearchPlan[] {
+  if (!hasDeepResearchIntent(query, mode)) return [];
+  const topic = normalizeResearchTopic(query);
+  return [
+    {
+      id: "experience-reddit",
+      phase: "experience",
+      provider: "Reddit",
+      axis: "User experience and complaints",
+      query: compactSearchQuery(`${topic} hands on experience complaints workflow honest review`),
+      includeDomains: ["reddit.com"],
+      maxResults: 3,
+    },
+    {
+      id: "experience-x",
+      phase: "experience",
+      provider: "X",
+      axis: "Short-form current reactions",
+      query: compactSearchQuery(`${topic} experience workflow complaints launch reactions`),
+      includeDomains: ["x.com", "twitter.com"],
+      maxResults: 2,
+    },
+    {
+      id: "experience-hn",
+      phase: "experience",
+      provider: "Hacker News",
+      axis: "Technical community discussion",
+      query: compactSearchQuery(`${topic} developer discussion comparison limitations`),
+      includeDomains: ["news.ycombinator.com"],
+      maxResults: 2,
+    },
+    {
+      id: "experience-github",
+      phase: "experience",
+      provider: "GitHub",
+      axis: "Issues, repos, and implementation signal",
+      query: compactSearchQuery(`${topic} github issues repo examples implementation`),
+      includeDomains: ["github.com"],
+      maxResults: 2,
+    },
+    {
+      id: "experience-youtube",
+      phase: "experience",
+      provider: "YouTube",
+      axis: "Long-form hands-on reviews",
+      query: compactSearchQuery(`${topic} hands on review comparison demo`),
+      includeDomains: ["youtube.com"],
+      maxResults: 2,
+    },
+  ];
+}
+
+function buildDiscoveredDomainPlans(query: string, results: ResearchResult[], mode: ResearchMode): ResearchPlan[] {
+  if (!hasDeepResearchIntent(query, mode)) return [];
+  const topic = normalizeResearchTopic(query);
+  const ignoredHosts = new Set(["reddit.com", "x.com", "twitter.com", "news.ycombinator.com", "github.com", "youtube.com"]);
+  const counts = new Map<string, number>();
+
+  for (const result of results) {
+    const host = hostFromUrl(result.url);
+    if (!host || ignoredHosts.has(host)) continue;
+    counts.set(host, (counts.get(host) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([host], index) => ({
+      id: `depth-${index}-${host.replace(/\W+/g, "-")}`,
+      phase: "depth" as const,
+      provider: host,
+      axis: "Follow-up on discovered primary source",
+      query: compactSearchQuery(`${topic} pricing limitations experience source`),
+      includeDomains: [host],
+      maxResults: 2,
+    }));
 }
 
 async function runTavilySearch(
   env: HonoEnv["Bindings"],
-  plan: { provider: string; query: string; includeDomains?: string[]; maxResults: number },
+  plan: ResearchPlan,
   useMonthFilter: boolean,
-): Promise<TavilyResult[]> {
+): Promise<ResearchResult[]> {
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -167,48 +300,80 @@ async function runTavilySearch(
   });
   if (!res.ok) return [];
   const data = (await res.json()) as { results?: TavilyResult[] };
-  return data.results ?? [];
+  return (data.results ?? []).map((result) => ({
+    ...result,
+    phase: plan.phase,
+    provider: plan.provider,
+    axis: plan.axis,
+    query: plan.query,
+  }));
 }
 
-async function runResearchSearch(query: string, env: HonoEnv["Bindings"]) {
-  const socialMode = hasSocialResearchIntent(query);
-  const plans = buildResearchQueries(query);
-  const trace: ResearchTraceEvent[] = [
-    {
-      id: "research-plan",
-      stage: "plan",
-      label: socialMode ? "Planning last-30-days social research" : "Planning web research",
-      detail: socialMode
-        ? "Scanning web, Reddit, X, Hacker News, and GitHub where available."
-        : "Checking fresh web results before answering.",
-    },
-    ...plans.map((plan) => ({
-      id: `search-${plan.provider.toLowerCase().replace(/\W+/g, "-")}`,
-      stage: "search" as const,
-      label: `Searching ${plan.provider}`,
-      detail: socialMode ? "Restricted to results published in roughly the last month." : undefined,
+async function runResearchSearch(
+  query: string,
+  env: HonoEnv["Bindings"],
+  mode: ResearchMode = "auto",
+  onTrace?: (event: ResearchTraceEvent) => void | Promise<void>,
+) {
+  const socialMode = mode === "social" || mode === "recent" || hasSocialResearchIntent(query);
+  const deepMode = hasDeepResearchIntent(query, mode);
+  const discoveryPlans = buildDiscoveryPlans(query, mode);
+  const experiencePlans = buildExperiencePlans(query, mode);
+  const trace: ResearchTraceEvent[] = [];
+  const emitTrace = async (event: ResearchTraceEvent) => {
+    trace.push(event);
+    await onTrace?.(event);
+  };
+
+  await emitTrace({
+    id: "research-plan",
+    stage: "plan",
+    label: deepMode ? "Breaking research into subqueries" : "Planning web research",
+    detail: deepMode
+      ? `${mode === "auto" ? "Auto" : mode} mode: discovery first, then experience data, then depth checks against discovered sources. Topic: ${normalizeResearchTopic(query)}`
+      : "Checking fresh web results before answering.",
+  });
+
+  for (const plan of discoveryPlans) {
+    await emitTrace({
+      id: `search-${plan.id}`,
+      stage: "search",
+      label: `${plan.axis}`,
+      detail: `Discovery via ${plan.provider}`,
       provider: plan.provider,
       query: plan.query,
-    })),
-  ];
-
-  const settled = await Promise.allSettled(plans.map((plan) => runTavilySearch(env, plan, socialMode)));
-  const seenUrls = new Set<string>();
-  const results: TavilyResult[] = [];
-
-  for (const item of settled) {
-    if (item.status !== "fulfilled") continue;
-    for (const result of item.value) {
-      if (!result.url || seenUrls.has(result.url)) continue;
-      seenUrls.add(result.url);
-      results.push(result);
-    }
+    });
   }
 
-  results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  const selected = results.slice(0, socialMode ? 10 : 4);
+  const discoverySettled = await Promise.allSettled(discoveryPlans.map((plan) => runTavilySearch(env, plan, socialMode)));
+  const discoveryResults = collectResearchResults(discoverySettled);
+  const depthPlans = [...experiencePlans, ...buildDiscoveredDomainPlans(query, discoveryResults, mode)].slice(0, 8);
+  for (const plan of depthPlans) {
+    await emitTrace({
+      id: `search-${plan.id}`,
+      stage: "search",
+      label: `${plan.axis}`,
+      detail: `${plan.phase === "experience" ? "Experience data" : "Depth check"} via ${plan.provider}`,
+      provider: plan.provider,
+      query: plan.query,
+    });
+  }
+
+  const depthSettled = await Promise.allSettled(depthPlans.map((plan) => runTavilySearch(env, plan, socialMode || deepMode)));
+  const allResults = [...discoveryResults, ...collectResearchResults(depthSettled)];
+  const seenUrls = new Set<string>();
+  const results: ResearchResult[] = [];
+
+  for (const result of allResults) {
+    if (!result.url || seenUrls.has(result.url)) continue;
+    seenUrls.add(result.url);
+    results.push(result);
+  }
+
+  results.sort((a, b) => researchRank(b) - researchRank(a));
+  const selected = results.slice(0, deepMode ? 14 : 4);
   const sources = selected.map((result) => {
-    const provider = providerFromUrl(result.url);
+    const provider = result.provider || providerFromUrl(result.url);
     return {
       title: provider === "Web" ? result.title : `[${provider}] ${result.title}`,
       url: result.url,
@@ -218,35 +383,56 @@ async function runResearchSearch(query: string, env: HonoEnv["Bindings"]) {
   });
 
   if (sources.length) {
-    trace.push({
+    await emitTrace({
       id: "research-read",
       stage: "read",
       label: `Reading ${sources.length} candidate sources`,
-      detail: "Deduplicating links and keeping the strongest snippets for citation.",
+      detail: summarizeProviderCoverage(selected),
     });
-    trace.push({
+    await emitTrace({
       id: "research-synthesize",
       stage: "synthesize",
-      label: "Cross-checking and preparing cited answer",
-      detail: "The answer should cite only the sources found in this run.",
+      label: deepMode ? "Clustering claims and conflicts" : "Cross-checking and preparing cited answer",
+      detail: deepMode
+        ? "Group claims by theme, separate first-hand experience from official facts, and call out weak/conflicting evidence."
+        : "The answer should cite only the sources found in this run.",
     });
   }
 
   const context =
     sources.length === 0
       ? ""
-      : (socialMode
-          ? "[Last-30-days social research results]\n"
+      : (deepMode
+          ? "[Deep research results: discovery, experience, depth]\n"
           : "[Web search results]\n") +
         selected
           .map(
             (result, index) =>
-              `[${index + 1}] ${result.title}\nSource: ${result.url}\nPlatform: ${providerFromUrl(result.url)}\nContent: ${result.content.slice(0, 700)}`,
+              `[${index + 1}] ${result.title}\nSource: ${result.url}\nPlatform: ${providerFromUrl(result.url)}\nPhase: ${result.phase}\nAxis: ${result.axis}\nSubquery: ${result.query}\nContent: ${result.content.slice(0, 700)}`,
           )
           .join("\n\n") +
-        "\n\nUse these sources to answer. Cite them inline as [1], [2], etc. If the sources are weak, stale, or missing a platform the user asked for, say that plainly. Do not fabricate social consensus, numbers, prices, dates, or current events.";
+        "\n\nUse these sources to answer. Cite them inline as [1], [2], etc. For deep research, structure the answer around: key takeaways, first-hand experience signals, official/primary facts, conflicts or uncertainty, and source-backed next steps. If a table has a Source column, put citation markers like [1], [2] in that cell. If the sources are weak, stale, or missing a platform the user asked for, say that plainly. Do not fabricate social consensus, numbers, prices, dates, or current events.";
 
   return { context, sources, trace };
+}
+
+function collectResearchResults(items: PromiseSettledResult<ResearchResult[]>[]): ResearchResult[] {
+  return items.flatMap((item) => (item.status === "fulfilled" ? item.value : []));
+}
+
+function researchRank(result: ResearchResult): number {
+  const phaseBoost = result.phase === "experience" ? 0.12 : result.phase === "depth" ? 0.08 : 0;
+  const providerBoost = ["Reddit", "Hacker News", "GitHub", "YouTube"].includes(result.provider) ? 0.08 : 0;
+  return (result.score ?? 0) + phaseBoost + providerBoost;
+}
+
+function summarizeProviderCoverage(results: ResearchResult[]): string {
+  const counts = new Map<string, number>();
+  for (const result of results) {
+    counts.set(result.provider, (counts.get(result.provider) ?? 0) + 1);
+  }
+  const summary = [...counts.entries()].map(([provider, count]) => `${provider}: ${count}`).join(", ");
+  return summary ? `Deduplicated and ranked by relevance plus experience-source signal. Coverage: ${summary}.` : "Deduplicated and ranked candidate sources.";
 }
 
 function estimateTokens(text: string) {
@@ -373,6 +559,7 @@ export async function handleChat(c: Context<HonoEnv>) {
         501,
       );
     }
+    const openRouterApiKey = env.OPENROUTER_API_KEY;
 
     const model = modelConfig(body.model);
     const profile = await getUserProfile(env, userId);
@@ -388,9 +575,12 @@ export async function handleChat(c: Context<HonoEnv>) {
     }
 
     // Wave 5 / Phase 7: search augmentation (Tavily). Normal web search stays
-    // single-source; social/current intent expands into targeted sources.
+    // concise; deep/social/current intent expands into targeted subqueries.
     const enableSearch = body.enableSearch as boolean | undefined;
     const forceSearch = body.forceSearch as boolean | undefined;
+    const researchMode = (["auto", "web", "deep", "social", "recent"].includes(String(body.researchMode))
+      ? body.researchMode
+      : "auto") as ResearchMode;
     // Per-request reasoning depth. Forwarded to OpenRouter as
     // `reasoning: { effort }`. OpenRouter normalizes across providers
     // (DeepSeek V4 Flash supports up to "xhigh"; others vary). Omitted for
@@ -404,92 +594,11 @@ export async function handleChat(c: Context<HonoEnv>) {
       | "high"
       | "xhigh"
       | undefined;
+    const convId = body.conversationId ?? null;
+    const idempotencyKey = c.req.header("Idempotency-Key") ?? body.idempotency_key ?? null;
+    let finalMessages = messages;
     let tavilySources: Array<{ title: string; url: string; snippet: string; faviconUrl?: string }> = [];
     let researchTrace: ResearchTraceEvent[] = [];
-    if (enableSearch === true && env.TAVILY_API_KEY) {
-      const lastUserContent = getLastUserContent(messages);
-      let shouldSearch = forceSearch === true || hasSocialResearchIntent(lastUserContent);
-      if (!shouldSearch && lastUserContent) {
-        try {
-          shouldSearch = await classifySearchNeed(lastUserContent, env);
-        } catch {
-          // classification is best-effort
-        }
-      }
-      if (shouldSearch && lastUserContent) {
-        try {
-          const research = await runResearchSearch(lastUserContent, env);
-          researchTrace = research.trace;
-          tavilySources = research.sources;
-          if (research.context) {
-            messages = [{ role: "system", content: research.context }, ...messages];
-          }
-        } catch {
-          // search is best-effort
-        }
-      }
-    }
-
-    const convId = body.conversationId ?? null;
-    let finalMessages = messages;
-
-    // Response-type marker: always prepend so client can render a "ANSWER / ANALYSIS / TUTORIAL / CREATIVE" badge
-    finalMessages = [{ role: "system", content: getResponseTypeInstructions() }, ...finalMessages];
-
-    // PDF artifact instructions: only inject when user explicitly asks for a document
-    const lastUserContent = getLastUserContent(messages);
-    if (userWantsPdf(lastUserContent)) {
-      finalMessages = [{ role: "system", content: getArtifactInstructions() }, ...finalMessages];
-    }
-    if (convId) {
-      const summaries = await fetchConversationSummaries(env, convId);
-      const systemCtx = buildSystemContext(summaries);
-      if (systemCtx) {
-        finalMessages = [{ role: "system", content: systemCtx }, ...finalMessages];
-      }
-
-      // Wave 4 / Layer 3: semantic retrieval of relevant old messages
-      const queryText = getLastUserContent(messages);
-      if (queryText) {
-        const queryEmbedding = await getEmbedding(queryText, env.OPENROUTER_API_KEY);
-        if (queryEmbedding.length) {
-          const relevant = await matchMessages(env, {
-            queryEmbedding,
-            matchThreshold: 0.55,
-            matchCount: 3,
-            conversationId: convId,
-          }).catch(() => []);
-
-          if (relevant?.length) {
-            const retrievalCtx =
-              "[Relevant context from earlier in this conversation]\n" +
-              relevant.map((m) => `${m.role}: ${m.content}`).join("\n");
-            finalMessages = [{ role: "system", content: retrievalCtx }, ...finalMessages];
-          }
-
-          // Layer 4.5: memory facts retrieval (Wave 4 wiring fix — Section 3e)
-          // Reuse queryEmbedding from Layer 3. Higher threshold (0.72) than
-          // message retrieval (0.55) so only strongly-relevant facts join the
-          // context. Strictly additive — no-op when memory_facts is empty.
-          const facts = await matchMemoryFacts(env, {
-            queryEmbedding,
-            matchThreshold: 0.72,
-            matchCount: 6,
-            userId,
-          }).catch(() => []);
-
-          if (facts?.length) {
-            const memoryCtx =
-              "[What you remember about this user]\n" +
-              facts.map((f) => `• ${f.content} (${f.category})`).join("\n");
-            finalMessages = [{ role: "system", content: memoryCtx }, ...finalMessages];
-          }
-        }
-      }
-    }
-
-    const estimatedPrompt = estimateTokens(JSON.stringify(finalMessages));
-    const maxOutput = Math.max(4096, Math.min(model.maxOutput, model.contextWindow - estimatedPrompt - 1024));
 
     // Build the reasoning param for OpenRouter.
     //   - a real effort level → request that depth
@@ -504,28 +613,6 @@ export async function handleChat(c: Context<HonoEnv>) {
           ? { reasoning: { effort: reasoningEffort } }
           : {};
 
-    const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://onyxai.app",
-        "X-Title": "OnyxAI",
-      },
-      body: JSON.stringify({
-        model: model.id,
-        messages: finalMessages,
-        stream: true,
-        max_tokens: maxOutput,
-        ...reasoningParam,
-      }),
-    });
-
-    if (!orResponse.ok) {
-      const errText = await orResponse.text().catch(() => "");
-      return c.json({ error: "openrouter_error", status: orResponse.status, detail: errText }, 502);
-    }
-
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
@@ -538,10 +625,111 @@ export async function handleChat(c: Context<HonoEnv>) {
 
     const writeStream = (async () => {
       try {
-        for (const event of researchTrace) {
+        const emitResearchStep = async (event: ResearchTraceEvent) => {
           await writer.write(
             encoder.encode(`data: ${JSON.stringify({ type: "research_step", event })}\n\n`),
           );
+        };
+
+        if (enableSearch === true && env.TAVILY_API_KEY) {
+          const lastUserContent = getLastUserContent(messages);
+          const shouldSearch = forceSearch === true || isForcedResearchMode(researchMode) || hasAutoSearchIntent(lastUserContent);
+          if (shouldSearch && lastUserContent) {
+            try {
+              const research = await runResearchSearch(lastUserContent, env, researchMode, emitResearchStep);
+              researchTrace = research.trace;
+              tavilySources = research.sources;
+              if (research.context) {
+                finalMessages = [{ role: "system", content: research.context }, ...finalMessages];
+              }
+            } catch {
+              // search is best-effort
+            }
+          }
+        }
+
+        // Response-type marker: always prepend so client can render a "ANSWER / ANALYSIS / TUTORIAL / CREATIVE" badge
+        finalMessages = [{ role: "system", content: getResponseTypeInstructions() }, ...finalMessages];
+
+        // PDF artifact instructions: only inject when user explicitly asks for a document
+        const lastUserContent = getLastUserContent(messages);
+        if (userWantsPdf(lastUserContent)) {
+          finalMessages = [{ role: "system", content: getArtifactInstructions() }, ...finalMessages];
+        }
+        if (convId) {
+          const summaries = await fetchConversationSummaries(env, convId);
+          const systemCtx = buildSystemContext(summaries);
+          if (systemCtx) {
+            finalMessages = [{ role: "system", content: systemCtx }, ...finalMessages];
+          }
+
+          // Wave 4 / Layer 3: semantic retrieval of relevant old messages
+          const queryText = getLastUserContent(messages);
+          if (queryText) {
+            const queryEmbedding = await getEmbedding(queryText, openRouterApiKey);
+            if (queryEmbedding.length) {
+              const relevant = await matchMessages(env, {
+                queryEmbedding,
+                matchThreshold: 0.55,
+                matchCount: 3,
+                conversationId: convId,
+              }).catch(() => []);
+
+              if (relevant?.length) {
+                const retrievalCtx =
+                  "[Relevant context from earlier in this conversation]\n" +
+                  relevant.map((m) => `${m.role}: ${m.content}`).join("\n");
+                finalMessages = [{ role: "system", content: retrievalCtx }, ...finalMessages];
+              }
+
+              // Layer 4.5: memory facts retrieval (Wave 4 wiring fix — Section 3e)
+              // Reuse queryEmbedding from Layer 3. Higher threshold (0.72) than
+              // message retrieval (0.55) so only strongly-relevant facts join the
+              // context. Strictly additive — no-op when memory_facts is empty.
+              const facts = await matchMemoryFacts(env, {
+                queryEmbedding,
+                matchThreshold: 0.72,
+                matchCount: 6,
+                userId,
+              }).catch(() => []);
+
+              if (facts?.length) {
+                const memoryCtx =
+                  "[What you remember about this user]\n" +
+                  facts.map((f) => `• ${f.content} (${f.category})`).join("\n");
+                finalMessages = [{ role: "system", content: memoryCtx }, ...finalMessages];
+              }
+            }
+          }
+        }
+
+        const estimatedPrompt = estimateTokens(JSON.stringify(finalMessages));
+        const maxOutput = Math.max(4096, Math.min(model.maxOutput, model.contextWindow - estimatedPrompt - 1024));
+
+        const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openRouterApiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://onyxai.app",
+            "X-Title": "OnyxAI",
+          },
+          body: JSON.stringify({
+            model: model.id,
+            messages: finalMessages,
+            stream: true,
+            max_tokens: maxOutput,
+            ...reasoningParam,
+          }),
+        });
+
+        if (!orResponse.ok) {
+          const errText = await orResponse.text().catch(() => "");
+          const errorChunk = JSON.stringify({
+            error: `openrouter_error:${orResponse.status}${errText ? ` ${errText}` : ""}`,
+          });
+          await writer.write(encoder.encode(`data: ${errorChunk}\n\n`));
+          return;
         }
 
         // Emit citation sources BEFORE streaming model tokens so client can render Perplexity-style cards
@@ -636,6 +824,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               content: fullContent,
               model: model.id,
               sources: tavilySources,
+              researchTrace,
               reasoning: fullReasoning || null,
             });
             insertedMessageId = inserted.id;
@@ -645,7 +834,6 @@ export async function handleChat(c: Context<HonoEnv>) {
         }
 
         try {
-          const idempotencyKey = c.req.header("Idempotency-Key") ?? body.idempotency_key ?? null;
           if (convId && insertedMessageId && idempotencyKey) {
             await callRpc(env, "record_usage_and_charge", {
               p_user_id: userId,

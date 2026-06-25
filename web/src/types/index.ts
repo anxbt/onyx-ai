@@ -60,6 +60,8 @@ export interface ResearchTraceEvent {
   title?: string;
 }
 
+export type ResearchMode = "auto" | "web" | "deep";
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -69,6 +71,7 @@ export interface Message {
   hasAttachment?: boolean;
   attachments?: Attachment[];
   sources?: Source[];
+  researchTrace?: ResearchTraceEvent[];
   createdAt: string;
 }
 

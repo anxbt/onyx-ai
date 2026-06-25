@@ -97,8 +97,11 @@ export function analyzeUpload(body: { uploadId: string; storagePath: string; mim
   );
 }
 
-export function createOrder(body: { packId?: string; amount?: number }, accessToken: string) {
-  return postWorker<{ keyId: string; orderId: string; amount: number; currency: string }, typeof body>(
+export function createOrder(
+  body: { packId?: string; amount?: number; amountPaise?: number; currency?: string; receipt?: string },
+  accessToken: string,
+) {
+  return postWorker<{ keyId: string; orderId: string; order_id?: string; amount: number; currency: string }, typeof body>(
     "/payments/create-order",
     body,
     accessToken,
