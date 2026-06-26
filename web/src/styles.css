@@ -3921,28 +3921,6 @@ input:focus-visible {
   align-items: center;
 }
 
-.skill-mode-control .skill-clear-button {
-  position: absolute;
-  inset-block-start: -5px;
-  inset-inline-end: -5px;
-  z-index: 2;
-  display: grid;
-  inline-size: 18px;
-  block-size: 18px;
-  min-inline-size: 18px;
-  place-items: center;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: #111113;
-  color: var(--text-soft);
-  padding: 0;
-}
-
-.skill-mode-control .skill-clear-button:hover,
-.skill-mode-control .skill-clear-button:focus-visible {
-  color: var(--gold);
-}
-
 .desktop-composer .skill-mode-control > button {
   min-inline-size: 86px;
 }

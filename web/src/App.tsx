@@ -1549,19 +1549,6 @@ function SkillModeControl({
         {compact ? null : <span>{selected?.label ?? "Skills"}</span>}
         <ChevronDown size={compact ? 14 : 13} />
       </button>
-      {selected ? (
-        <button
-          type="button"
-          className="skill-clear-button"
-          aria-label="Clear selected skill"
-          onClick={() => {
-            setSelectedSkillId(null);
-            setOpen(false);
-          }}
-        >
-          <X size={12} />
-        </button>
-      ) : null}
       {open ? (
         <span className="mode-menu skill-mode-menu" role="menu">
           <button
