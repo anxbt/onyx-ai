@@ -1,5 +1,5 @@
 import { getModelConfig } from "@/lib/models";
-import type { Attachment, Message, ReasoningEffortLevel, ResearchMode, ResearchTraceEvent, Source } from "@/types";
+import type { Attachment, Message, ReasoningEffortLevel, ResearchMode, ResearchTraceEvent, SkillId, Source } from "@/types";
 
 import { supabase } from "./supabase";
 import { getWorkerUrl } from "./worker";
@@ -46,6 +46,7 @@ export function streamChatFromWorker({
   forceSearch,
   researchMode,
   reasoningEffort,
+  skillId,
   signal,
   callbacks,
 }: {
@@ -58,6 +59,7 @@ export function streamChatFromWorker({
   forceSearch?: boolean;
   researchMode?: ResearchMode;
   reasoningEffort?: ReasoningEffortLevel;
+  skillId?: SkillId | null;
   signal?: AbortSignal;
   callbacks: StreamCallbacks;
 }): () => void {
@@ -116,6 +118,7 @@ export function streamChatFromWorker({
     forceSearch,
     researchMode,
     reasoningEffort,
+    skillId,
   });
 
   const makeRequest = (token: string) =>

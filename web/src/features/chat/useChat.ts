@@ -14,7 +14,7 @@ import {
   updateMessageContent,
 } from "@/api/supabase";
 import { estimateTokens } from "@/lib/tokens";
-import type { Attachment, Conversation, Message, ReasoningEffortLevel, ResearchMode, ResearchTraceEvent, SessionLike, Source } from "@/types";
+import type { Attachment, Conversation, Message, ReasoningEffortLevel, ResearchMode, ResearchTraceEvent, SessionLike, SkillId, Source } from "@/types";
 
 function upsertResearchTraceEvent(events: ResearchTraceEvent[], event: ResearchTraceEvent) {
   const existingIndex = events.findIndex((item) => item.id === event.id);
@@ -87,7 +87,14 @@ export function useChat({
     };
   }, [conversationId]);
 
-  async function sendMessage(content: string, attachments: Attachment[] = [], search?: { enableSearch: boolean; forceSearch: boolean; researchMode?: ResearchMode }) {
+  async function sendMessage(
+    content: string,
+    attachments: Attachment[] = [],
+    options?: {
+      search?: { enableSearch: boolean; forceSearch: boolean; researchMode?: ResearchMode };
+      skillId?: SkillId | null;
+    },
+  ) {
     const trimmed = content.trim();
     if (!trimmed || !session?.accessToken) {
       return;
@@ -145,7 +152,8 @@ export function useChat({
     }
 
     runStreamForHistory(convId, token, allMessages, {
-      search,
+      search: options?.search,
+      skillId: options?.skillId,
       attachments,
       summaryPreview: trimmed.slice(0, 120),
     });
@@ -157,6 +165,7 @@ export function useChat({
     history: Message[],
     options?: {
       search?: { enableSearch: boolean; forceSearch: boolean; researchMode?: ResearchMode };
+      skillId?: SkillId | null;
       attachments?: Attachment[];
       summaryPreview?: string;
     },
@@ -189,6 +198,7 @@ export function useChat({
       forceSearch: options?.search?.forceSearch,
       researchMode: options?.search?.researchMode,
       reasoningEffort: resolveReasoningEffort(modelId),
+      skillId: options?.skillId,
       callbacks: {
         onContent: (accumulated) => {
           sawContentRef.current = true;
@@ -216,6 +226,7 @@ export function useChat({
               model: modelId,
               sources: capturedSources.length ? capturedSources : undefined,
               researchTrace: capturedResearchTrace.length ? capturedResearchTrace : undefined,
+              skillId: options?.skillId ?? undefined,
               createdAt: new Date().toISOString(),
             };
 

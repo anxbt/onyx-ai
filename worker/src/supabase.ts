@@ -78,6 +78,7 @@ export async function insertAssistantMessage(
     content: string;
     model: string;
     sources?: Array<{ title: string; url: string; snippet: string; faviconUrl?: string }>;
+    skillId?: string | null;
     researchTrace?: Array<{
       id: string;
       stage: "plan" | "search" | "read" | "synthesize";
@@ -107,6 +108,9 @@ export async function insertAssistantMessage(
   }
   if (params.sources?.length) {
     body.sources = params.sources;
+  }
+  if (params.skillId) {
+    body.skill_id = params.skillId;
   }
   if (params.researchTrace?.length) {
     body.research_trace = params.researchTrace;

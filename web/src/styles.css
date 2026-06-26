@@ -3917,6 +3917,36 @@ input:focus-visible {
   min-inline-size: 92px;
 }
 
+.skill-mode-control {
+  align-items: center;
+}
+
+.skill-mode-control .skill-clear-button {
+  position: absolute;
+  inset-block-start: -5px;
+  inset-inline-end: -5px;
+  z-index: 2;
+  display: grid;
+  inline-size: 18px;
+  block-size: 18px;
+  min-inline-size: 18px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: #111113;
+  color: var(--text-soft);
+  padding: 0;
+}
+
+.skill-mode-control .skill-clear-button:hover,
+.skill-mode-control .skill-clear-button:focus-visible {
+  color: var(--gold);
+}
+
+.desktop-composer .skill-mode-control > button {
+  min-inline-size: 86px;
+}
+
 .mode-menu {
   position: absolute;
   inset-block-end: calc(100% + 8px);
@@ -3949,6 +3979,29 @@ input:focus-visible {
   font-size: 12px;
   font-weight: 800;
   text-align: start;
+}
+
+.skill-mode-menu {
+  min-inline-size: 230px;
+}
+
+.skill-mode-menu button span {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.skill-mode-menu button strong {
+  color: inherit;
+  font-size: 12px;
+}
+
+.skill-mode-menu button small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .mode-menu button.is-selected,

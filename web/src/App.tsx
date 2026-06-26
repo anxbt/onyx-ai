@@ -72,6 +72,7 @@ import type {
   ResearchMode,
   ResearchTraceEvent,
   SessionLike,
+  SkillId,
   UsageEvent,
   UserProfile,
 } from "@/types";
@@ -90,8 +91,27 @@ const researchModeOptions: Array<{ value: ResearchMode; label: string }> = [
   { value: "deep", label: "Deep" },
 ];
 
+const skillOptions: Array<{ value: SkillId; label: string; description: string }> = [
+  { value: "explain", label: "Explain", description: "Clarify only what is already in front of us." },
+  { value: "learn", label: "Learn", description: "Teach step by step with examples and checks." },
+  { value: "research", label: "Research", description: "Find, read, and cite sources." },
+  { value: "brainstorm", label: "Brainstorm", description: "Explore structured ideas and directions." },
+];
+
 function researchModeLabel(mode: ResearchMode) {
   return researchModeOptions.find((option) => option.value === mode)?.label ?? "Auto";
+}
+
+function skillLabel(skillId?: SkillId | null) {
+  return skillOptions.find((option) => option.value === skillId)?.label ?? null;
+}
+
+function composerPlaceholder(skillId: SkillId | null, researchMode: ResearchMode) {
+  if (skillId === "explain") return "Paste what you want explained…";
+  if (skillId === "learn") return "What do you want to learn?";
+  if (skillId === "research") return "What should I research?";
+  if (skillId === "brainstorm") return "What should we brainstorm?";
+  return researchMode === "auto" ? "Message Closed AI…" : `${researchModeLabel(researchMode)} research…`;
 }
 
 const reasoningLevelLabels: Record<ReasoningEffortLevel, string> = {
@@ -377,6 +397,7 @@ function App() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [researchMode, setResearchMode] = useState<ResearchMode>("auto");
+  const [selectedSkillId, setSelectedSkillId] = useState<SkillId | null>(null);
   const [conversationSearch, setConversationSearch] = useState("");
   const authMode = location.pathname === "/auth/sign-up" ? "sign-up" : "sign-in";
   const view = pathToView(location.pathname);
@@ -427,15 +448,20 @@ function App() {
       setView("credits");
       return;
     }
+    const sendResearchMode = selectedSkillId === "research" && researchMode === "auto" ? "deep" : researchMode;
     chat.sendMessage(trimmed, attachments, {
-      enableSearch: true,
-      forceSearch: researchMode !== "auto",
-      researchMode,
+      search: {
+        enableSearch: selectedSkillId !== "explain",
+        forceSearch: selectedSkillId === "research" || sendResearchMode !== "auto",
+        researchMode: sendResearchMode,
+      },
+      skillId: selectedSkillId,
     }).catch(() => {});
     setDraft("");
-    if (researchMode !== "auto") {
+    if (researchMode !== "auto" || selectedSkillId === "research") {
       setResearchMode("auto");
     }
+    setSelectedSkillId(null);
     attachments.forEach(revokeAttachmentObjectUrl);
     setAttachments([]);
   };
@@ -515,6 +541,7 @@ function App() {
     regenerateLastAssistant: chat.regenerateLastAssistant,
     researchMode,
     reasoningEffortByModel,
+    selectedSkillId,
     selectedModel,
     selectedModelId,
     setAttachmentsEnabled,
@@ -523,6 +550,7 @@ function App() {
     setDraft,
     setResearchMode,
     setReasoningEffort,
+    setSelectedSkillId,
     setView,
     streaming: chat.streaming,
     streamingContent: chat.streamingContent,
@@ -883,6 +911,7 @@ type ChatProps = {
   regenerateLastAssistant: () => void;
   researchMode: ResearchMode;
   reasoningEffortByModel: Record<string, ReasoningEffortLevel>;
+  selectedSkillId: SkillId | null;
   selectedModel: Model;
   session: SessionLike | null;
   refreshProfile: () => Promise<UserProfile | null>;
@@ -898,6 +927,7 @@ type ChatProps = {
   setDraft: (value: string) => void;
   setResearchMode: (mode: ResearchMode) => void;
   setReasoningEffort: (modelId: string, level: ReasoningEffortLevel) => void;
+  setSelectedSkillId: (skillId: SkillId | null) => void;
   setView: (view: View) => void;
   streaming: boolean;
   streamingContent: string;
@@ -1120,6 +1150,7 @@ function MessageBubble({
   }
 
   const { body, suggestions } = splitSuggestionBlock(message.content);
+  const activeSkillLabel = skillLabel(message.skillId);
   const evidenceItems =
     message.sources?.map((source) => ({
       faviconUrl: source.faviconUrl,
@@ -1138,7 +1169,12 @@ function MessageBubble({
       <div className="answer-content">
         <header className="answer-meta">
           <strong>{selectedModel.name}</strong>
-          <span>{message.sources?.length ? `Synthesized from ${message.sources.length} sources` : "Assistant response"}</span>
+          <span>
+            {[
+              activeSkillLabel ? `${activeSkillLabel} mode` : null,
+              message.sources?.length ? `Synthesized from ${message.sources.length} sources` : "Assistant response",
+            ].filter(Boolean).join(" · ")}
+          </span>
         </header>
         {message.researchTrace?.length ? <ResearchTrace events={message.researchTrace} /> : null}
         <div className="answer-copy">
@@ -1480,6 +1516,93 @@ function SearchModeControl({
   );
 }
 
+function SkillModeControl({
+  compact = false,
+  selectedSkillId,
+  setSelectedSkillId,
+}: {
+  compact?: boolean;
+  selectedSkillId: SkillId | null;
+  setSelectedSkillId: (skillId: SkillId | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = skillOptions.find((option) => option.value === selectedSkillId) ?? null;
+
+  return (
+    <span
+      className={[
+        "mode-control skill-mode-control",
+        compact ? "is-compact" : "",
+        selected ? "is-on" : "is-auto",
+        open ? "is-open" : "",
+      ].filter(Boolean).join(" ")}
+      onBlur={(event) => closeMenuOnBlur(event, () => setOpen(false))}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={selected ? `Skill: ${selected.label}` : "Choose a skill"}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <CirclePlus size={compact ? 18 : 16} />
+        {compact ? null : <span>{selected?.label ?? "Skills"}</span>}
+        <ChevronDown size={compact ? 14 : 13} />
+      </button>
+      {selected ? (
+        <button
+          type="button"
+          className="skill-clear-button"
+          aria-label="Clear selected skill"
+          onClick={() => {
+            setSelectedSkillId(null);
+            setOpen(false);
+          }}
+        >
+          <X size={12} />
+        </button>
+      ) : null}
+      {open ? (
+        <span className="mode-menu skill-mode-menu" role="menu">
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={!selectedSkillId}
+            className={!selectedSkillId ? "is-selected" : undefined}
+            onClick={() => {
+              setSelectedSkillId(null);
+              setOpen(false);
+            }}
+          >
+            <span>
+              <strong>None</strong>
+              <small>Normal chat</small>
+            </span>
+          </button>
+          {skillOptions.map((option) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={selectedSkillId === option.value}
+              className={selectedSkillId === option.value ? "is-selected" : undefined}
+              key={option.value}
+              onClick={() => {
+                setSelectedSkillId(option.value);
+                setOpen(false);
+              }}
+            >
+              <span>
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function ReasoningModeControl({
   compact = false,
   effortByModel,
@@ -1593,12 +1716,14 @@ function DesktopComposer({
   onFilesSelected,
   reasoningEffortByModel,
   researchMode,
+  selectedSkillId,
   selectedModel,
   setAttachments,
   setAttachmentsEnabled,
   setDraft,
   setReasoningEffort,
   setResearchMode,
+  setSelectedSkillId,
   streaming,
   submitMessage,
   uploadStatus,
@@ -1670,6 +1795,7 @@ function DesktopComposer({
           <button type="button" aria-label="Attach image" onClick={() => imageInputRef.current?.click()}>
             <ImagePlus size={16} />
           </button>
+          <SkillModeControl selectedSkillId={selectedSkillId} setSelectedSkillId={setSelectedSkillId} />
           <SearchModeControl mode={researchMode} setMode={setResearchMode} />
           <ReasoningModeControl
             effortByModel={reasoningEffortByModel}
@@ -1683,7 +1809,7 @@ function DesktopComposer({
           rows={1}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Ask follow-up or refine query…"
+          placeholder={composerPlaceholder(selectedSkillId, researchMode)}
           autoComplete="off"
         />
         <button type="submit" aria-label={streaming ? "Stop streaming" : balanceDepleted ? "Top up credits" : "Send message"}>
@@ -2620,11 +2746,15 @@ function MobileChat(props: ChatProps) {
           />
         ) : (() => {
           const { body, suggestions } = splitSuggestionBlock(message.content);
+          const activeSkillLabel = skillLabel(message.skillId);
           return (
             <section className="mobile-analysis" key={message.id}>
               <header>
                 <Sparkles size={18} />
-                <span>Closed Analysis · {props.selectedModel.name}</span>
+                <span>
+                  Closed Analysis · {props.selectedModel.name}
+                  {activeSkillLabel ? ` · ${activeSkillLabel}` : ""}
+                </span>
               </header>
               {message.researchTrace?.length ? <ResearchTrace events={message.researchTrace} /> : null}
               <MarkdownRenderer content={body} sources={message.sources} />
@@ -2706,11 +2836,13 @@ function MobileComposer({
   onFilesSelected,
   reasoningEffortByModel,
   researchMode,
+  selectedSkillId,
   selectedModel,
   setAttachmentsEnabled,
   setDraft,
   setReasoningEffort,
   setResearchMode,
+  setSelectedSkillId,
   streaming,
   submitMessage,
 }: ChatProps) {
@@ -2741,17 +2873,18 @@ function MobileComposer({
           fileInputRef.current?.click();
         }}
       >
-        {attachmentsEnabled ? <ImagePlus size={25} /> : <CirclePlus size={25} />}
+        {attachmentsEnabled ? <ImagePlus size={25} /> : <Paperclip size={23} />}
       </button>
       <label>
         <span className="sr-only">Message Closed AI</span>
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={researchMode === "auto" ? "Message Closed AI…" : `${researchModeLabel(researchMode)} research…`}
+          placeholder={composerPlaceholder(selectedSkillId, researchMode)}
           autoComplete="off"
         />
       </label>
+      <SkillModeControl compact selectedSkillId={selectedSkillId} setSelectedSkillId={setSelectedSkillId} />
       <SearchModeControl compact mode={researchMode} setMode={setResearchMode} />
       <ReasoningModeControl
         compact

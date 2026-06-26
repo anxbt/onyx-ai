@@ -62,6 +62,8 @@ export interface ResearchTraceEvent {
 
 export type ResearchMode = "auto" | "web" | "deep";
 
+export type SkillId = "explain" | "learn" | "research" | "brainstorm";
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -72,6 +74,7 @@ export interface Message {
   attachments?: Attachment[];
   sources?: Source[];
   researchTrace?: ResearchTraceEvent[];
+  skillId?: SkillId | null;
   createdAt: string;
 }
 

@@ -67,6 +67,54 @@ type ResearchTraceEvent = {
 
 type ResearchMode = "auto" | "web" | "deep" | "social" | "recent";
 
+type SkillId = "explain" | "learn" | "research" | "brainstorm";
+
+const VALID_SKILLS = new Set<SkillId>(["explain", "learn", "research", "brainstorm"]);
+
+function normalizeSkillId(value: unknown): SkillId | null {
+  return typeof value === "string" && VALID_SKILLS.has(value as SkillId) ? (value as SkillId) : null;
+}
+
+function getSkillInstructions(skillId: SkillId | null): string | null {
+  if (skillId === "explain") {
+    return [
+      "[Active skill: Explain]",
+      "Explain only the material the user provided or referenced in the current conversation.",
+      "Do not browse, invent extra facts, or introduce outside claims unless the user explicitly asks for them.",
+      "Prefer a clear restatement, the core idea, important terms, why each part matters, and any ambiguity or missing context.",
+      "If the source material is insufficient, say what is missing instead of filling gaps.",
+    ].join("\n");
+  }
+  if (skillId === "learn") {
+    return [
+      "[Active skill: Learn]",
+      "Teach the concept step by step. Start with the user's current goal, then build a small scaffold before details.",
+      "Use examples, analogies, and short checks for understanding when helpful.",
+      "If the user asks for homework, interview, or exam help, coach the reasoning rather than simply giving a final answer.",
+      "Keep the lesson focused; do not turn it into a broad article unless requested.",
+    ].join("\n");
+  }
+  if (skillId === "research") {
+    return [
+      "[Active skill: Research]",
+      "Treat the answer as source-grounded research. Use the supplied search context and cite source-backed claims inline as [1], [2], etc.",
+      "Prefer primary sources, first-hand experience, and recent sources when the question depends on current information.",
+      "Call out weak evidence, conflicting sources, and missing coverage plainly.",
+      "Do not fabricate sources, citations, prices, dates, social consensus, or current events.",
+    ].join("\n");
+  }
+  if (skillId === "brainstorm") {
+    return [
+      "[Active skill: Brainstorm]",
+      "Help generate and refine ideas. Use structured ideation: reframe the problem, explore contrasting directions, combine adjacent ideas, then converge on promising options.",
+      "Separate raw possibilities from ranked recommendations.",
+      "When the user asks for research ideas, include novelty, feasibility, risks, and the smallest next experiment.",
+      "Avoid pretending brainstormed ideas are proven facts.",
+    ].join("\n");
+  }
+  return null;
+}
+
 type ResearchPhase = "discover" | "experience" | "depth";
 
 type ResearchPlan = {
@@ -581,6 +629,11 @@ export async function handleChat(c: Context<HonoEnv>) {
     const researchMode = (["auto", "web", "deep", "social", "recent"].includes(String(body.researchMode))
       ? body.researchMode
       : "auto") as ResearchMode;
+    const skillId = normalizeSkillId(body.skillId);
+    const effectiveResearchMode =
+      skillId === "research" && researchMode === "auto" ? "deep" : researchMode;
+    const effectiveEnableSearch = skillId === "explain" ? false : enableSearch;
+    const effectiveForceSearch = skillId === "research" ? true : forceSearch;
     // Per-request reasoning depth. Forwarded to OpenRouter as
     // `reasoning: { effort }`. OpenRouter normalizes across providers
     // (DeepSeek V4 Pro supports up to "xhigh"; others vary). Omitted for
@@ -631,12 +684,15 @@ export async function handleChat(c: Context<HonoEnv>) {
           );
         };
 
-        if (enableSearch === true && env.TAVILY_API_KEY) {
+        if (effectiveEnableSearch === true && env.TAVILY_API_KEY) {
           const lastUserContent = getLastUserContent(messages);
-          const shouldSearch = forceSearch === true || isForcedResearchMode(researchMode) || hasAutoSearchIntent(lastUserContent);
+          const shouldSearch =
+            effectiveForceSearch === true ||
+            isForcedResearchMode(effectiveResearchMode) ||
+            hasAutoSearchIntent(lastUserContent);
           if (shouldSearch && lastUserContent) {
             try {
-              const research = await runResearchSearch(lastUserContent, env, researchMode, emitResearchStep);
+              const research = await runResearchSearch(lastUserContent, env, effectiveResearchMode, emitResearchStep);
               researchTrace = research.trace;
               tavilySources = research.sources;
               if (research.context) {
@@ -650,6 +706,11 @@ export async function handleChat(c: Context<HonoEnv>) {
 
         // Response-type marker: always prepend so client can render a "ANSWER / ANALYSIS / TUTORIAL / CREATIVE" badge
         finalMessages = [{ role: "system", content: getResponseTypeInstructions() }, ...finalMessages];
+
+        const skillInstructions = getSkillInstructions(skillId);
+        if (skillInstructions) {
+          finalMessages = [{ role: "system", content: skillInstructions }, ...finalMessages];
+        }
 
         // PDF artifact instructions: only inject when user explicitly asks for a document
         const lastUserContent = getLastUserContent(messages);
@@ -825,6 +886,7 @@ export async function handleChat(c: Context<HonoEnv>) {
               model: model.id,
               sources: tavilySources,
               researchTrace,
+              skillId,
               reasoning: fullReasoning || null,
             });
             insertedMessageId = inserted.id;
@@ -869,6 +931,7 @@ export async function handleChat(c: Context<HonoEnv>) {
         const doneChunk = JSON.stringify({
           ok: true,
           messageId: insertedMessageId,
+          skillId,
           usage: { promptTokens, completionTokens, totalTokens, chargedTotalCostInr },
           done: true,
         });
