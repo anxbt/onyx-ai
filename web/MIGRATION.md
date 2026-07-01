@@ -109,7 +109,7 @@ Global: `body { background:#141218; color:#e6e0e9 }`; use `100dvh` for full-heig
 
 ## 4. Files to COPY verbatim
 - `types/index.ts` → `src/types/index.ts`
-- `constants/colors.ts`, `constants/models.ts` (`MODELS, DEFAULT_MODEL_ID, FREE_MODEL_ID, TOP_UP_PACKS, FRONTIER_BASELINE`), `constants/config.ts` → `src/constants/`
+- `constants/colors.ts`, `constants/models.ts` (`MODELS, DEFAULT_MODEL_ID, TOP_UP_PACKS, FRONTIER_BASELINE`), `constants/config.ts` → `src/constants/`
 - `lib/markdown.ts` (math extraction, `safeTruncateForStreaming`, `extractResponseType`), `lib/tokens.ts` (`estimateTokens`), `lib/models.ts` (`getModelConfig`) → `src/lib/`
 
 Replace `@/` with `vite-tsconfig-paths` alias or relative imports.
@@ -334,7 +334,7 @@ Replace expo pickers with `<input type="file">`: camera `accept="image/*" captur
 - **Markdown during stream**: pass through `safeTruncateForStreaming`; hide partial `<!--type-->`.
 - **Code copy on http**: `navigator.clipboard` may be blocked → hidden-textarea `execCommand` fallback.
 - **objectURL leaks**: revoke after upload and on attachment removal.
-- **Balance gating**: disable Send + show "Top up" when `creditBalance<=0` on a paid model; free model always allowed.
+- **Balance gating**: disable Send + show "Top up" when `creditBalance<=0` on a paid model.
 - **Empty/error/loading**: every query renders skeleton/empty/error.
 - **Worker 401**: refresh session once + retry; else redirect to sign-in.
 

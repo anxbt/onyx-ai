@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   ArrowRight,
-  Bolt,
   Check,
   ChevronDown,
   ChevronsLeft,
@@ -40,10 +39,10 @@ import {
   X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { type FocusEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FocusEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
-import { FREE_MODEL_ID, MODELS as BASE_MODELS, TOP_UP_PACKS } from "@/constants/models";
+import { DEFAULT_MODEL_ID, MODELS as BASE_MODELS, TOP_UP_PACKS } from "@/constants/models";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { attachmentFromFile, documentAccept, generateUploadAnalysisId, uploadToStorage } from "@/api/uploads";
 import { analyzeUpload, checkWorkerHealth, crawlUrl, createOrder, getEmbedding, searchWeb, verifyPayment } from "@/api/worker";
@@ -404,10 +403,10 @@ function App() {
   const setView = (nextView: View) => {
     navigate(viewToPath(nextView));
   };
-  const selectedModelId = activeModelId;
   const modelCatalogQuery = useModelCatalogQuery();
   const availableModels = mergeAvailableModels(modelCatalogQuery.data);
-  const selectedModel = availableModels.find((model) => model.id === selectedModelId) ?? availableModels[0];
+  const selectedModel = availableModels.find((model) => model.id === activeModelId) ?? availableModels[0];
+  const selectedModelId = selectedModel.id;
   const balanceDepleted = !selectedModel.isFree && (profile?.creditBalance ?? 0) <= 0;
   const conversationsQuery = useConversationsQuery(session?.user.id, conversationSearch);
   const usageQuery = useUsageQuery(session?.user.id);
@@ -424,6 +423,13 @@ function App() {
       void queryClient.invalidateQueries({ queryKey: ["conversations", session.user.id] });
     }
   };
+
+  useEffect(() => {
+    if (activeModelId !== selectedModel.id) {
+      setActiveModelId(selectedModel.id);
+    }
+  }, [activeModelId, selectedModel.id, setActiveModelId]);
+
   const chat = useChat({
     conversationId: activeConversationId,
     modelId: selectedModelId,
@@ -1695,6 +1701,19 @@ function useScrollToBottomControl<T extends HTMLElement>() {
   return { scrollRef, scrollToBottom, updateVisibility, visible };
 }
 
+function useAutosizeTextarea(value: string) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value]);
+
+  return ref;
+}
+
 function DesktopComposer({
   attachments,
   attachmentsEnabled,
@@ -1717,6 +1736,7 @@ function DesktopComposer({
 }: ChatProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textAreaRef = useAutosizeTextarea(draft);
 
   return (
     <form className="desktop-composer" aria-label="Chat composer" onSubmit={(event) => {
@@ -1792,6 +1812,7 @@ function DesktopComposer({
         </div>
         <label className="sr-only" htmlFor="message-input">Ask follow-up</label>
         <textarea
+          ref={textAreaRef}
           id="message-input"
           rows={1}
           value={draft}
@@ -1803,7 +1824,7 @@ function DesktopComposer({
           {streaming ? <StopCircle size={18} /> : <SendHorizontal size={18} />}
         </button>
       </div>
-      <p>{balanceDepleted ? "Top up credits to use this paid model, or switch to a free model." : "Closed AI may produce inaccurate information about people, places, or facts."}</p>
+      <p>{balanceDepleted ? "Top up credits to continue with this model." : "Closed AI may produce inaccurate information about people, places, or facts."}</p>
     </form>
   );
 }
@@ -1869,6 +1890,12 @@ function formatDateLabel(value: string) {
     return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value));
   }
   return value;
+}
+
+function formatCompactInr(value: number) {
+  if (value >= 100000) return `₹${Math.round(value / 100000)}L`;
+  if (value >= 1000) return `₹${Math.round(value / 1000)}k`;
+  return `₹${Math.max(0, Math.floor(value))}`;
 }
 
 function getInitials(value: string) {
@@ -2125,6 +2152,7 @@ function CreditsPage({
 }) {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
 
   const startTopUp = async (packId: string) => {
     if (isPaying) return;
@@ -2201,6 +2229,89 @@ function CreditsPage({
     }
   };
 
+  const parsedCustomAmount = Math.floor(Number(customAmount));
+  const customAmountValid = Number.isFinite(parsedCustomAmount) && parsedCustomAmount >= 10 && parsedCustomAmount <= 10000;
+
+  const startCustomTopUp = async () => {
+    if (isPaying) return;
+    if (!session?.accessToken) {
+      setPaymentStatus("Sign in before topping up credits.");
+      return;
+    }
+    if (!customAmountValid) {
+      setPaymentStatus("Enter an amount between ₹10 and ₹10,000.");
+      return;
+    }
+
+    try {
+      setIsPaying(true);
+      setPaymentStatus("Loading secure checkout…");
+      await loadRazorpayCheckout();
+      setPaymentStatus("Creating payment order…");
+      const order = await createOrder({ amount: parsedCustomAmount }, session.accessToken);
+      const checkoutKey = order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      let paymentCompleted = false;
+
+      if (!checkoutKey) {
+        throw new Error("Razorpay key id is missing.");
+      }
+
+      const Razorpay = window.Razorpay;
+      if (!Razorpay) {
+        throw new Error("Razorpay checkout is unavailable.");
+      }
+
+      const checkout = new Razorpay({
+        key: checkoutKey,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Closed AI",
+        description: `Custom credit top up: ₹${parsedCustomAmount}`,
+        prefill: {
+          name: session.user.displayName ?? "",
+          email: session.user.email ?? "",
+        },
+        modal: {
+          ondismiss: () => {
+            if (!paymentCompleted) {
+              setPaymentStatus("Payment cancelled. No credits were added.");
+              setIsPaying(false);
+            }
+          },
+        },
+        handler: async (response: unknown) => {
+          const payload = response as {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          };
+          paymentCompleted = true;
+          try {
+            setPaymentStatus("Verifying payment…");
+            await verifyPayment(payload, session.accessToken as string);
+            await refreshProfile();
+            setCustomAmount("");
+            setPaymentStatus("Payment verified. Balance refreshed.");
+          } catch (error) {
+            setPaymentStatus(error instanceof Error ? error.message : "Payment verification failed.");
+          } finally {
+            setIsPaying(false);
+          }
+        },
+      });
+      checkout.on("payment.failed", (response) => {
+        const error = typeof response === "object" && response && "error" in response ? (response as { error?: { description?: string } }).error : null;
+        setPaymentStatus(error?.description ?? "Payment failed. No credits were added.");
+        setIsPaying(false);
+      });
+      checkout.open();
+    } catch (error) {
+      setPaymentStatus(error instanceof Error ? error.message : "Could not start payment.");
+      setIsPaying(false);
+    }
+  };
+
   return (
     <section className="settings-page">
       <header className="settings-hero">
@@ -2215,6 +2326,35 @@ function CreditsPage({
           <small>{usageEvents.length} usage events this month · {transactions.length} recent transactions.</small>
         </article>
         {paymentStatus ? <p className="payment-status">{paymentStatus}</p> : null}
+        <form
+          className="custom-topup-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void startCustomTopUp();
+          }}
+        >
+          <span>Custom Top Up</span>
+          <label>
+            <small>Amount</small>
+            <span>
+              ₹
+              <input
+                inputMode="numeric"
+                min={10}
+                max={10000}
+                pattern="[0-9]*"
+                placeholder="Enter amount"
+                type="number"
+                value={customAmount}
+                onChange={(event) => setCustomAmount(event.target.value)}
+              />
+            </span>
+          </label>
+          <p>Min ₹10 · Max ₹10,000 · Credits are added 1:1.</p>
+          <button type="submit" disabled={isPaying || !customAmountValid}>
+            Top up {customAmountValid ? `₹${parsedCustomAmount}` : "custom amount"}
+          </button>
+        </form>
         {TOP_UP_PACKS.map((pack) => (
           <button className="pack-card" type="button" key={pack.label} onClick={() => startTopUp(pack.id)} disabled={isPaying}>
             <CreditCard size={20} />
@@ -2512,7 +2652,7 @@ function LiveSmokePage({ session }: { session: SessionLike }) {
 
     let smokeConversationId: string | null = null;
     try {
-      const conversation = await createConversation(session.user.id, FREE_MODEL_ID);
+      const conversation = await createConversation(session.user.id, DEFAULT_MODEL_ID);
       smokeConversationId = conversation.id;
       const prompt = "Live smoke test: reply with one short sentence confirming streaming works.";
       const userMessage = await insertUserMessage(session.user.id, conversation.id, prompt, false);
@@ -2524,7 +2664,7 @@ function LiveSmokePage({ session }: { session: SessionLike }) {
             cancelStreamRef.current = streamChatFromWorker({
               accessToken: token,
               conversationId: conversation.id,
-              modelId: FREE_MODEL_ID,
+              modelId: DEFAULT_MODEL_ID,
               messages: [userMessage],
               enableSearch: false,
               forceSearch: false,
@@ -2705,7 +2845,7 @@ function MobileLayout({
       )}
 
       {view === "chat" ? <MobileComposer {...chatProps} setView={setView} view={view} /> : null}
-      <MobileNav setView={setView} view={view} />
+      <MobileNav balance={chatProps.profile?.creditBalance ?? 0} setView={setView} view={view} />
     </div>
   );
 }
@@ -2834,6 +2974,7 @@ function MobileComposer({
   submitMessage,
 }: ChatProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textAreaRef = useAutosizeTextarea(draft);
 
   return (
     <form className="mobile-composer" onSubmit={(event) => {
@@ -2864,7 +3005,9 @@ function MobileComposer({
       </button>
       <label>
         <span className="sr-only">Message Closed AI</span>
-        <input
+        <textarea
+          ref={textAreaRef}
+          rows={1}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder={composerPlaceholder(selectedSkillId, researchMode)}
@@ -2886,9 +3029,9 @@ function MobileComposer({
   );
 }
 
-function MobileNav({ setView, view }: { setView: (view: View) => void; view: View }) {
+function MobileNav({ balance, setView, view }: { balance: number; setView: (view: View) => void; view: View }) {
   const items = [
-    { view: "credits" as const, label: "Credits", icon: Bolt },
+    { view: "credits" as const, label: "Credits", icon: WalletCards },
     { view: "library" as const, label: "Library", icon: Search },
     { view: "chat" as const, label: "Chat", icon: Sparkles },
     { view: "settings" as const, label: "Settings", icon: UserRound },
@@ -2905,6 +3048,7 @@ function MobileNav({ setView, view }: { setView: (view: View) => void; view: Vie
           onClick={() => setView(itemView)}
           key={itemView}
         >
+          {itemView === "credits" ? <span className="mobile-nav-balance">{formatCompactInr(balance)}</span> : null}
           <Icon size={27} />
         </button>
       ))}

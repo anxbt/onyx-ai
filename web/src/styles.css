@@ -323,6 +323,10 @@ input:focus-visible {
 .chat-error {
   inline-size: min(820px, 100%);
   margin: 0 auto;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .payment-status {
@@ -2306,6 +2310,7 @@ input:focus-visible {
 }
 
 .balance-card,
+.custom-topup-card,
 .pack-card,
 .memory-fact,
 .conversation-card {
@@ -2322,6 +2327,7 @@ input:focus-visible {
 }
 
 .balance-card span,
+.custom-topup-card > span,
 .memory-fact span,
 .conversation-card span {
   color: var(--text-muted);
@@ -2340,6 +2346,8 @@ input:focus-visible {
 }
 
 .balance-card small,
+.custom-topup-card p,
+.custom-topup-card small,
 .pack-card small,
 .memory-fact small,
 .conversation-card small,
@@ -2347,6 +2355,57 @@ input:focus-visible {
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.custom-topup-card {
+  display: grid;
+  gap: 14px;
+}
+
+.custom-topup-card label {
+  display: grid;
+  gap: 8px;
+}
+
+.custom-topup-card label > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: rgb(10 10 12 / 0.56);
+  padding: 12px 14px;
+  color: var(--gold);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.custom-topup-card input {
+  min-inline-size: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.custom-topup-card input::placeholder {
+  color: var(--text-faint);
+}
+
+.custom-topup-card button {
+  inline-size: 100%;
+  min-block-size: 44px;
+  border-radius: 12px;
+  background: var(--gold);
+  color: var(--gold-dark);
+  font-weight: 850;
+}
+
+.custom-topup-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .pack-card {
@@ -2375,6 +2434,35 @@ input:focus-visible {
   color: var(--gold);
   font-style: normal;
   font-weight: 850;
+}
+
+.mobile-nav button {
+  position: relative;
+}
+
+.mobile-nav-balance {
+  position: absolute;
+  inset-block-start: -12px;
+  inset-inline-end: -8px;
+  min-inline-size: 36px;
+  max-inline-size: 48px;
+  overflow: hidden;
+  border: 1px solid rgb(229 213 176 / 0.45);
+  border-radius: 999px;
+  background: #111113;
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  padding: 4px 6px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-nav button.is-active .mobile-nav-balance {
+  background: var(--gold-dark);
+  color: var(--gold);
 }
 
 .memory-fact,
@@ -4150,5 +4238,109 @@ input:focus-visible {
 
   .mobile-composer > button[type="submit"] {
     inline-size: 38px;
+  }
+}
+
+@media (max-width: 1180px) {
+  html,
+  body,
+  #root,
+  .app-shell,
+  .app-content,
+  .mobile-layout,
+  .mobile-thread {
+    inline-size: 100%;
+    max-inline-size: 100vw;
+    overflow-x: hidden;
+  }
+
+  .mobile-thread {
+    justify-items: stretch;
+  }
+
+  .mobile-thread > *,
+  .mobile-analysis,
+  .mobile-analysis .markdown-body,
+  .chat-error {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+
+  .mobile-user-bubble {
+    justify-self: end;
+    inline-size: fit-content;
+    max-inline-size: min(87vw, 332px);
+  }
+
+  .mobile-user-bubble > p,
+  .mobile-analysis p,
+  .conversation-card,
+  .conversation-card-main,
+  .conversation-card strong,
+  .conversation-card p,
+  .conversation-card small {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .mobile-layout .conversation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.desktop-composer textarea,
+.mobile-composer textarea {
+  min-inline-size: 0;
+  inline-size: 100%;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.desktop-composer textarea {
+  min-block-size: 38px;
+  max-block-size: min(42vh, 320px);
+  line-height: 1.45;
+}
+
+.mobile-composer {
+  align-items: flex-end;
+  max-block-size: min(44vh, 360px);
+}
+
+.mobile-composer label {
+  min-inline-size: 0;
+}
+
+.mobile-composer textarea {
+  max-block-size: min(32vh, 240px);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  outline: 0;
+  padding: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.42;
+}
+
+.mobile-composer textarea::placeholder {
+  color: rgb(157 154 163 / 0.75);
+}
+
+@media (min-width: 1181px) {
+  .desktop-composer .composer-input-shell {
+    align-items: end;
+  }
+}
+
+@media (max-width: 560px) {
+  .mobile-composer textarea {
+    max-block-size: min(36vh, 260px);
   }
 }

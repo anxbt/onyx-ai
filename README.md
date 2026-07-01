@@ -23,13 +23,12 @@ React Native (Expo SDK 54) app ──┬── direct → Supabase (auth, conver
 
 Full architectural decisions in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Full implementation plan in `~/.claude/plans/so-here-are-the-noble-bunny.md`.
 
-## Model catalog (June 3, 2026)
+## Model catalog (July 1, 2026)
 
 | Tier | Model | OpenRouter ID | Context | Pricing $/M | Reasoning |
 |---|---|---|---|---|---|
-| Free default | **Owl Alpha** | `openrouter/owl-alpha` | 1M | $0 / $0 (caveat: provider logs for training) | effort param |
-| Paid default | DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 1M | $0.435 / $0.87 | effort: low/med/high/xhigh |
-| Multimodal | Qwen3.6 Plus | `qwen/qwen3.6-plus` | 1M | $0.325 / $1.95 | effort param |
+| Default | **Qwen3.6 Plus** | `qwen/qwen3.6-plus` | 1M | $0.325 / $1.95 | effort param |
+| Reasoning | DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 1M | $0.435 / $0.87 | effort: low/med/high/xhigh |
 | Deep reasoning | Kimi K2 Thinking | `moonshotai/kimi-k2-thinking` | 262K | $0.60 / $2.50 | always-on |
 | Agentic reasoning | GLM-5.2 | `z-ai/glm-5.2` | 1M | $0.95 / $3.00 | effort: high/xhigh |
 
@@ -44,7 +43,7 @@ Internal-only (worker uses for OCR, classification, summarization): Gemini Flash
 | **Auto-reload patch** | Updates fetch + reload on every cold start, kills the double-launch gotcha | `75cbe87c` | ✅ Live |
 | **Batch 2a** — Catalog cleanup v1 | 4-model lineup (replaced with v2 below) | `c95b2ecf` | superseded |
 | **Math placeholder fix** | 3c (a, d) — placeholder format no longer collides with markdown bold; AMS-LaTeX delimiters | `28978cbc` (1.0.1) + `64c587bb` (1.0.0) | ✅ Live |
-| **Batch 3 + 5 + 7 + 7c** — see below | Catalog v2 (Owl Alpha) + reasoning UI + greeting + auto-scroll + reasoning panel | this round | ⏳ |
+| **Batch 3 + 5 + 7 + 7c** — see below | Catalog v2 + reasoning UI + greeting + auto-scroll + reasoning panel | this round | ⏳ |
 
 ## Batch 3 + Section 5 + 7 + 7c (this round)
 
@@ -52,15 +51,15 @@ Internal-only (worker uses for OCR, classification, summarization): Gemini Flash
 
 | Section | What | Files |
 |---|---|---|
-| Batch 3 catalog | Owl Alpha at top (free, 1M context, agentic positioning) + DeepSeek V4 Pro paid default + GLM-5.2 agentic reasoning + Kimi output price (2.4→2.5) + per-model `reasoningConfig` | `constants/models.ts`, `worker/src/config.ts`, `types/index.ts`, migrations `0010` + `20260626091500` + `20260626093000` + `20260626093500` |
+| Batch 3 catalog | Qwen3.6 Plus default + DeepSeek V4 Pro reasoning + GLM-5.2 agentic reasoning + Kimi output price (2.4→2.5) + per-model `reasoningConfig` | `constants/models.ts`, `worker/src/config.ts`, `types/index.ts`, migrations `0010` + `20260626091500` + `20260626093000` + `20260626093500` + `20260701150220` |
 | Batch 3 reasoning UI | 💡 Thinking chip in input bar + bottom-sheet picker with 6 effort levels (none/min/low/med/high/xhigh) + per-model defaults + zustand persistence | `components/chat/ReasoningEffortSheet.tsx` (NEW), `store/app.ts`, `lib/openrouter.ts`, `hooks/useChat.ts`, `worker/src/chat.ts` |
 | Section 7 | Time-of-day greeting (Good morning / Hello, night owl, etc.) + 3 starter prompt chips on every new chat | `lib/greeting.ts` (NEW), `constants/starter-prompts.ts` (NEW), `components/chat/NewChatGreeting.tsx` (NEW), `app/index.tsx` |
 | Section 5 | Auto-scroll in MessageList during streaming, with 80px manual-scroll-up threshold | `components/chat/MessageList.tsx` |
 | Section 7c | Reasoning panel: "Thinking…" with elapsed timer → collapsed "Thought for Xs" → tap to expand verbatim trace. Trace persisted in `messages.reasoning` column | `components/chat/ReasoningPanel.tsx` (NEW), `types/index.ts`, `lib/openrouter.ts`, `hooks/useChat.ts`, `lib/supabase.ts`, `worker/src/supabase.ts`, `worker/src/chat.ts`, `components/chat/MessageBubble.tsx`, `components/chat/MessageList.tsx`, migration `0011` |
 
 **Deploy steps required before/with OTA**:
-1. `supabase db push` → applies migrations `0010` + `0011`
-2. `cd worker && npx wrangler deploy` → worker recognizes Owl Alpha ID + forwards `reasoning.effort` to OpenRouter + writes `messages.reasoning` column
+1. `supabase db push` → applies migrations through the latest catalog and message schema updates
+2. `cd worker && npx wrangler deploy` → worker recognizes current model IDs + forwards `reasoning.effort` only for reasoning-capable models + writes `messages.reasoning` column
 3. OTA — published to both runtimes
 
 ## Pending work (in priority order)

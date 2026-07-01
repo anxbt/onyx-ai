@@ -617,7 +617,7 @@ export async function handleChat(c: Context<HonoEnv>) {
 
     if (!model.isFree && !profile.is_superuser && Number(profile.credit_balance ?? 0) <= 0) {
       return c.json(
-        { error: "insufficient_credits", detail: "Choose a free model or top up credits." },
+        { error: "insufficient_credits", detail: "Top up credits to continue with this model." },
         402,
       );
     }
@@ -660,11 +660,13 @@ export async function handleChat(c: Context<HonoEnv>) {
     //     "Off" still showed a thinking trace. `enabled: false` disables it.
     //   - undefined (no preference sent) → omit, model default.
     const reasoningParam =
-      reasoningEffort === "none"
-        ? { reasoning: { enabled: false } }
-        : reasoningEffort
-          ? { reasoning: { effort: reasoningEffort } }
-          : {};
+      !model.supportsReasoning
+        ? {}
+        : reasoningEffort === "none"
+          ? { reasoning: { enabled: false } }
+          : reasoningEffort
+            ? { reasoning: { effort: reasoningEffort } }
+            : {};
 
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();

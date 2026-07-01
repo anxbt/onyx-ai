@@ -1,10 +1,7 @@
--- Catalog refresh: add Owl Alpha as the new free default + correct DeepSeek
--- V4 Flash (was wrongly marked free at $0/$0; in reality the `:free` variant
--- was non-functional and the paid variant has real costs) + fix Kimi K2
--- Thinking output price (2.40 → 2.50 per OpenRouter June 3 2026).
+-- Catalog refresh: add Qwen3.6 Plus as the default + correct DeepSeek
+-- V4 Flash pricing/context + fix Kimi K2 Thinking output price.
 
--- 1. Owl Alpha (NEW) — free default. App markup applied (×1.4 of provider)
---    is moot when both provider sides are 0, so app costs are 0 too.
+-- 1. Qwen3.6 Plus — default multimodal/reasoning model.
 insert into public.model_catalog (
   id,
   display_name,
@@ -21,19 +18,19 @@ insert into public.model_catalog (
   description,
   is_active
 ) values (
-  'openrouter/owl-alpha',
-  'Owl Alpha',
-  'OpenRouter',
+  'qwen/qwen3.6-plus',
+  'Qwen3.6 Plus',
+  'Alibaba',
+  true,
+  true,
   false,
-  true,
-  true,
-  0,
-  0,
-  0,
-  0,
+  0.325,
+  1.95,
+  0.455,
+  2.73,
   1000000,
-  32768,
-  'Free default. Strong at code, agents, and complex instructions. Provider may log messages for training.',
+  65536,
+  'Default model. Strong multimodal chat and reasoning with a 1M context window.',
   true
 )
 on conflict (id) do update set

@@ -101,7 +101,7 @@ CREATE TABLE user_profiles (
   display_name      TEXT,
   credit_balance    DECIMAL(10,4) NOT NULL DEFAULT 0,
   total_tokens_used INTEGER NOT NULL DEFAULT 0,
-  preferred_model   TEXT NOT NULL DEFAULT 'qwen/qwen3-coder:free',
+  preferred_model   TEXT NOT NULL DEFAULT 'qwen/qwen3.6-plus',
   is_superuser      BOOLEAN NOT NULL DEFAULT FALSE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -487,17 +487,17 @@ export async function handleChat(c: Context<HonoEnv>) {
 // constants/models.ts
 export const MODELS: ModelConfig[] = [
   {
-    id: "qwen/qwen3-coder:free",
-    displayName: "Qwen3 Coder",
+    id: "qwen/qwen3.6-plus",
+    displayName: "Qwen3.6 Plus",
     provider: "Alibaba",
-    supportsVision: false,
-    supportsReasoning: false,
-    isFree: true,
-    inputCostPerMToken: 0,
-    outputCostPerMToken: 0,
-    contextWindow: 262000,
-    maxOutput: 8192,
-    description: "Free model. Great for onboarding and lightweight tasks.",
+    supportsVision: true,
+    supportsReasoning: true,
+    isFree: false,
+    inputCostPerMToken: 0.325,
+    outputCostPerMToken: 1.95,
+    contextWindow: 1000000,
+    maxOutput: 65536,
+    description: "Default model. Strong multimodal chat and reasoning.",
   },
   {
     id: "google/gemini-2.5-flash-lite",
@@ -553,8 +553,7 @@ export const MODELS: ModelConfig[] = [
   },
 ];
 
-export const FREE_MODEL_ID = "qwen/qwen3-coder:free";
-export const DEFAULT_MODEL_ID = FREE_MODEL_ID;
+export const DEFAULT_MODEL_ID = "qwen/qwen3.6-plus";
 ```
 
 ### 7.2 Background Task Models

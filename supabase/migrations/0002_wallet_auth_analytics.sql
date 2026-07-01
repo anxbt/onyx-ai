@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS model_catalog (
 );
 
 ALTER TABLE user_profiles
-  ALTER COLUMN preferred_model SET DEFAULT 'qwen/qwen3-coder-480b:free';
+  ALTER COLUMN preferred_model SET DEFAULT 'qwen/qwen3.6-plus';
 
 CREATE INDEX IF NOT EXISTS conversations_user_updated_idx
   ON conversations (user_id, updated_at DESC);

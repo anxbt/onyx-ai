@@ -114,7 +114,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"model\": \"qwen/qwen3-coder-480b:free\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello, what is 2+2?\"\n    }\n  ],\n  \"conversationId\": \"test-conv-1\"\n}"
+              "raw": "{\n  \"model\": \"qwen/qwen3.6-plus\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello, what is 2+2?\"\n    }\n  ],\n  \"conversationId\": \"test-conv-1\"\n}"
             }
           }
         },

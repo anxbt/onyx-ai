@@ -8,19 +8,18 @@ export const FRONTIER_BASELINE = {
 
 export const CURATED_MODELS = [
   {
-    id: "openrouter/owl-alpha",
-    displayName: "Owl Alpha",
-    provider: "OpenRouter",
-    role: "free",
-    modality: "text",
+    id: "qwen/qwen3.6-plus",
+    displayName: "Qwen3.6 Plus",
+    provider: "Alibaba",
+    role: "default",
+    modality: "text+image+video",
     supportsReasoning: true,
-    isFree: true,
-    inputCostPerMToken: 0,
-    outputCostPerMToken: 0,
+    isFree: false,
+    inputCostPerMToken: 0.325,
+    outputCostPerMToken: 1.95,
     contextWindow: 1000000,
-    maxOutput: 32768,
-    description:
-      "Free default. Strong at code, agents, and complex instructions. Provider may log messages for training.",
+    maxOutput: 65536,
+    description: "Default multimodal model for high-quality chat, reasoning, images, diagrams, and exam papers.",
   },
   {
     id: "deepseek/deepseek-v4-pro",
@@ -34,21 +33,7 @@ export const CURATED_MODELS = [
     outputCostPerMToken: 0.87,
     contextWindow: 1000000,
     maxOutput: 32768,
-    description: "Paid default. Stronger long-context reasoning and coding model. No training data collection.",
-  },
-  {
-    id: "qwen/qwen3.6-plus",
-    displayName: "Qwen3.6 Plus",
-    provider: "Alibaba",
-    role: "tutoring",
-    modality: "text+image+video",
-    supportsReasoning: true,
-    isFree: false,
-    inputCostPerMToken: 0.325,
-    outputCostPerMToken: 1.95,
-    contextWindow: 1000000,
-    maxOutput: 65536,
-    description: "Multimodal — handles images, diagrams, and exam papers. Best when you need vision.",
+    description: "Strong long-context reasoning and coding model. No training data collection.",
   },
   {
     id: "moonshotai/kimi-k2-thinking",
@@ -103,6 +88,4 @@ export const CURATED_MODELS = [
 export const TOP_UP_PACKS = {
   pkg_100: { amountInr: 100, creditsInr: 100, label: "Starter" },
   pkg_250: { amountInr: 250, creditsInr: 262, label: "Popular" },
-  pkg_500: { amountInr: 500, creditsInr: 535, label: "Value" },
-  pkg_1000: { amountInr: 1000, creditsInr: 1100, label: "Pro" },
 } as const;

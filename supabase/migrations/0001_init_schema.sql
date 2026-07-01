@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   display_name TEXT,
   credit_balance DECIMAL(10,4) NOT NULL DEFAULT 0,
   total_tokens_used INTEGER NOT NULL DEFAULT 0,
-  preferred_model TEXT NOT NULL DEFAULT 'qwen/qwen3-coder-480b:free',
+  preferred_model TEXT NOT NULL DEFAULT 'qwen/qwen3.6-plus',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
