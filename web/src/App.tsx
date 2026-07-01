@@ -2186,6 +2186,7 @@ function CreditsPage({
         currency: order.currency,
         name: "Closed AI",
         description: "Credit top up",
+        webview_intent: true,
         prefill: {
           name: session.user.displayName ?? "",
           email: session.user.email ?? "",
@@ -2268,6 +2269,7 @@ function CreditsPage({
         currency: order.currency,
         name: "Closed AI",
         description: `Custom credit top up: ₹${parsedCustomAmount}`,
+        webview_intent: true,
         prefill: {
           name: session.user.displayName ?? "",
           email: session.user.email ?? "",

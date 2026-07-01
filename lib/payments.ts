@@ -110,6 +110,7 @@ export async function startRazorpayTopUp({
       name: "OnyxAI",
       description: buildDescription(paymentPack, paymentCustom),
       order_id: order.orderId,
+      webview_intent: true,
       prefill: { email },
       theme: { color: "#7C3AED" },
       handler: async (response: RazorpaySuccess) => {
