@@ -526,8 +526,8 @@ function userWantsPdf(text: string): boolean {
 function userWantsMoleculeArtifact(text: string): boolean {
   if (!text) return false;
   const t = text.toLowerCase();
-  return /\b(3d|three[- ]dimensional|interactive|render|model|viewer|visuali[sz]e|show)\b/.test(t)
-    && /\b(molecule|chemical|compound|drug|protein|smiles|pubchem|conformer|structure)\b/.test(t);
+  return /\b(3d|three[- ]dimensional|interactive|render|model|viewer|visuali[sz]e|show|generate|create|draw)\b/.test(t)
+    && /\b(molecule|molecular|chemical|compound|drug|protein|smiles|pubchem|conformer|structure|paracetamol|acetaminophen)\b/.test(t);
 }
 
 function getResponseTypeInstructions(): string {
@@ -586,7 +586,7 @@ For non-PDF artifacts (diagrams, charts, etc.): add data-type="artifact" to root
 }
 
 function getMoleculeArtifactInstructions(): string {
-  return `When the user asks for a 3D or interactive molecule/compound visualization, render it as a dedicated molecule artifact.
+  return `This product CAN render interactive 3D molecule structures. When the user asks for a 3D/interactable molecule, compound, drug, conformer, or molecular structure, you MUST include a dedicated molecule artifact.
 
 Use a fenced code block with language molecule and JSON only:
 \`\`\`molecule
@@ -594,8 +594,10 @@ Use a fenced code block with language molecule and JSON only:
 \`\`\`
 
 Rules:
+- Do NOT say you cannot render or output an interactive 3D molecule in this chat.
 - Do NOT generate HTML, JavaScript, iframes, or instructions to save an HTML file.
 - Include at least one reliable identifier: cid is best, name is acceptable, smiles is useful when known.
+- Correct obvious compound-name typos when the intent is clear, for example "paracetomaol" means paracetamol / acetaminophen.
 - Keep normal explanation text brief before or after the molecule block.`;
 }
 
