@@ -711,34 +711,14 @@ input:focus-visible {
   padding: 14px;
 }
 
-.molecule-frame svg {
+.molecule-viewer {
+  display: block;
   inline-size: 100%;
-  max-block-size: 260px;
-}
-
-.molecule-frame line {
-  stroke: color-mix(in srgb, var(--gold) 72%, var(--text));
-  stroke-linecap: round;
-  stroke-width: 5;
-}
-
-.molecule-frame circle {
-  fill: color-mix(in srgb, var(--surface) 78%, black);
-  stroke: var(--gold);
-  stroke-width: 2;
-}
-
-.molecule-frame text {
-  fill: var(--text);
-  font-size: 13px;
-  font-weight: 850;
-  text-anchor: middle;
-}
-
-.molecule-frame .hydrogen-label {
-  fill: var(--text-muted);
-  font-size: 11px;
-  font-weight: 750;
+  min-block-size: 320px;
+  block-size: min(440px, 62vh);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f7f5ef;
 }
 
 .molecule-fallback {
@@ -1463,6 +1443,11 @@ input:focus-visible {
   padding: 0;
 }
 
+.desktop-actions button.action-regenerate {
+  inline-size: auto;
+  padding: 0 17px;
+}
+
 .desktop-composer {
   position: absolute;
   inset-inline: 140px auto;
@@ -1747,6 +1732,26 @@ input:focus-visible {
     font-size: 29px;
     font-weight: 500;
     line-height: 1.55;
+  }
+
+  .mobile-message-actions {
+    display: flex;
+    margin-block-start: -8px;
+  }
+
+  .mobile-message-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-block-size: 36px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-soft);
+    padding: 0 14px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
   }
 
   .document-card {
@@ -2806,6 +2811,11 @@ input:focus-visible {
 
 .desktop-actions button:not(:first-child) {
   inline-size: 42px;
+}
+
+.desktop-actions button.action-regenerate {
+  inline-size: auto;
+  padding-inline: 13px;
 }
 
 .desktop-composer {
@@ -4126,10 +4136,9 @@ input:focus-visible {
 
 .mermaid-frame svg,
 .plot-frame svg,
-.molecule-frame svg,
+.molecule-viewer,
 .geometry-frame {
   max-inline-size: 100%;
-  block-size: auto;
 }
 
 .plot-frame,

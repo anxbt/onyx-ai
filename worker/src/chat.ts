@@ -523,6 +523,13 @@ function userWantsPdf(text: string): boolean {
       || /\b(download(?:able)?|printable|export\s+to)\s+(pdf|document|report)\b/.test(t);
 }
 
+function userWantsMoleculeArtifact(text: string): boolean {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return /\b(3d|three[- ]dimensional|interactive|render|model|viewer|visuali[sz]e|show)\b/.test(t)
+    && /\b(molecule|chemical|compound|drug|protein|smiles|pubchem|conformer|structure)\b/.test(t);
+}
+
 function getResponseTypeInstructions(): string {
   return `Begin EVERY response with a single hidden HTML comment tagging the response type. Use exactly one of:
 <!--type:answer--> for direct Q&A and factual lookups
@@ -576,6 +583,20 @@ ANTI-AI WRITING RULES:
 - Use concrete examples and specific numbers instead of vague qualifiers.
 
 For non-PDF artifacts (diagrams, charts, etc.): add data-type="artifact" to root <div>.`;
+}
+
+function getMoleculeArtifactInstructions(): string {
+  return `When the user asks for a 3D or interactive molecule/compound visualization, render it as a dedicated molecule artifact.
+
+Use a fenced code block with language molecule and JSON only:
+\`\`\`molecule
+{"name":"paracetamol","smiles":"CC(=O)NC1=CC=C(O)C=C1","cid":"1983"}
+\`\`\`
+
+Rules:
+- Do NOT generate HTML, JavaScript, iframes, or instructions to save an HTML file.
+- Include at least one reliable identifier: cid is best, name is acceptable, smiles is useful when known.
+- Keep normal explanation text brief before or after the molecule block.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -718,6 +739,9 @@ export async function handleChat(c: Context<HonoEnv>) {
         const lastUserContent = getLastUserContent(messages);
         if (userWantsPdf(lastUserContent)) {
           finalMessages = [{ role: "system", content: getArtifactInstructions() }, ...finalMessages];
+        }
+        if (userWantsMoleculeArtifact(lastUserContent)) {
+          finalMessages = [{ role: "system", content: getMoleculeArtifactInstructions() }, ...finalMessages];
         }
         if (convId) {
           const summaries = await fetchConversationSummaries(env, convId);

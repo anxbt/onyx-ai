@@ -950,6 +950,13 @@ type ChatProps = {
 function ChatStream(props: ChatProps) {
   const showEmptyState = !props.streaming && props.messages.length === 0;
   const { scrollRef, scrollToBottom, updateVisibility, visible } = useScrollToBottomControl<HTMLElement>();
+  const lastAssistantId = useMemo(() => {
+    if (props.streaming) return null;
+    for (let index = props.messages.length - 1; index >= 0; index -= 1) {
+      if (props.messages[index].role === "assistant") return props.messages[index].id;
+    }
+    return null;
+  }, [props.messages, props.streaming]);
 
   useEffect(() => {
     updateVisibility();
@@ -967,6 +974,7 @@ function ChatStream(props: ChatProps) {
             onEditUserMessage={props.editUserMessage}
             selectedModel={props.selectedModel}
             onRegenerate={props.regenerateLastAssistant}
+            canRegenerate={message.id === lastAssistantId}
             onSuggestion={props.setDraft}
           />
         ))}
@@ -984,6 +992,7 @@ function ChatStream(props: ChatProps) {
             onEditUserMessage={props.editUserMessage}
             selectedModel={props.selectedModel}
             onRegenerate={props.regenerateLastAssistant}
+            canRegenerate={false}
             onSuggestion={props.setDraft}
           />
         ) : null}
@@ -1124,12 +1133,14 @@ function MessageBubble({
   onEditUserMessage,
   selectedModel,
   onRegenerate,
+  canRegenerate,
   onSuggestion,
 }: {
   message: Message;
   onEditUserMessage: (messageId: string, newContent: string) => Promise<void>;
   selectedModel: Model;
   onRegenerate: () => void;
+  canRegenerate: boolean;
   onSuggestion?: (suggestion: string) => void;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
@@ -1224,9 +1235,12 @@ function MessageBubble({
             <Copy size={15} />
             {copyState === "copied" ? "Copied" : "Copy"}
           </button>
-          <button type="button" aria-label="Regenerate response" onClick={onRegenerate}>
-            <RefreshCcw size={15} />
-          </button>
+          {canRegenerate ? (
+            <button className="action-regenerate" type="button" aria-label="Regenerate response" onClick={onRegenerate}>
+              <RefreshCcw size={15} />
+              Regenerate
+            </button>
+          ) : null}
           <button type="button" aria-label="Helpful">
             <ThumbsUp size={15} />
           </button>
@@ -2855,6 +2869,13 @@ function MobileLayout({
 function MobileChat(props: ChatProps) {
   const showEmptyState = !props.streaming && props.messages.length === 0;
   const { scrollRef, scrollToBottom, updateVisibility, visible } = useScrollToBottomControl<HTMLElement>();
+  const lastAssistantId = useMemo(() => {
+    if (props.streaming) return null;
+    for (let index = props.messages.length - 1; index >= 0; index -= 1) {
+      if (props.messages[index].role === "assistant") return props.messages[index].id;
+    }
+    return null;
+  }, [props.messages, props.streaming]);
 
   useEffect(() => {
     updateVisibility();
@@ -2894,6 +2915,14 @@ function MobileChat(props: ChatProps) {
                       {suggestion}
                     </button>
                   ))}
+                </div>
+              ) : null}
+              {message.id === lastAssistantId ? (
+                <div className="mobile-message-actions" aria-label="Message actions">
+                  <button type="button" onClick={props.regenerateLastAssistant}>
+                    <RefreshCcw size={15} />
+                    Regenerate
+                  </button>
                 </div>
               ) : null}
             </section>

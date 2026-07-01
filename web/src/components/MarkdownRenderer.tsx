@@ -565,47 +565,118 @@ function PlotArtifact({ code }: { code: string }) {
   }
 }
 
-function moleculePoints(count: number, cx = 150, cy = 118, radius = 68) {
-  return Array.from({ length: count }, (_item, index) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / count;
-    return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+function buildMolecule3DHtml(molecule: { smiles?: string; name?: string; cid?: string | number }) {
+  const payload = JSON.stringify({
+    cid: molecule.cid ? String(molecule.cid).trim() : "",
+    name: molecule.name?.trim() ?? "",
+    smiles: molecule.smiles?.trim() ?? "",
   });
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #f7f5ef; color: #191817; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #viewer { position: absolute; inset: 0; }
+    .hud { position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; justify-content: space-between; gap: 8px; align-items: end; pointer-events: none; }
+    .label, .status { max-width: min(70%, 460px); border: 1px solid rgba(25, 24, 23, 0.1); border-radius: 999px; background: rgba(255, 255, 255, 0.82); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); padding: 7px 10px; font-size: 12px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status { color: #615b51; font-weight: 650; }
+    .error { position: absolute; inset: 0; display: grid; place-items: center; padding: 18px; text-align: center; background: #141218; color: #e6e0e9; font-size: 13px; line-height: 1.45; }
+    .error strong { display: block; margin-bottom: 6px; color: #ffb4ab; font-size: 14px; }
+    .loader { position: absolute; inset: 0; display: grid; place-items: center; color: #615b51; font-size: 13px; font-weight: 700; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/3dmol@2.5.5/build/3Dmol-min.js"></script>
+</head>
+<body>
+  <div id="viewer"></div>
+  <div class="loader" id="loader">Loading 3D structure...</div>
+  <div class="hud">
+    <div class="label" id="label"></div>
+    <div class="status">Drag to rotate · scroll to zoom</div>
+  </div>
+  <script>
+    const molecule = ${payload};
+    const label = document.getElementById("label");
+    const loader = document.getElementById("loader");
+    const viewerEl = document.getElementById("viewer");
+    label.textContent = molecule.name || molecule.smiles || (molecule.cid ? "CID " + molecule.cid : "Molecule");
+
+    function fail(message) {
+      document.body.innerHTML = '<div class="error"><div><strong>Could not load 3D molecule</strong>' + message + '</div></div>';
+    }
+
+    function pubChemSdfUrl() {
+      if (molecule.cid) {
+        return "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/" + encodeURIComponent(molecule.cid) + "/SDF?record_type=3d";
+      }
+      if (molecule.name) {
+        return "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/" + encodeURIComponent(molecule.name) + "/SDF?record_type=3d";
+      }
+      if (molecule.smiles) {
+        return "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/" + encodeURIComponent(molecule.smiles) + "/SDF?record_type=3d";
+      }
+      return "";
+    }
+
+    async function renderMolecule() {
+      if (!window.$3Dmol) {
+        fail("3Dmol.js was blocked or failed to load.");
+        return;
+      }
+
+      const url = pubChemSdfUrl();
+      if (!url) {
+        fail("No PubChem CID, name, or SMILES string was provided.");
+        return;
+      }
+
+      try {
+        const response = await fetch(url, { mode: "cors" });
+        if (!response.ok) throw new Error("PubChem returned " + response.status);
+        const sdf = await response.text();
+        if (!sdf.trim()) throw new Error("PubChem returned an empty structure.");
+
+        const viewer = $3Dmol.createViewer(viewerEl, { backgroundColor: "#f7f5ef" });
+        viewer.addModel(sdf, "sdf");
+        viewer.setStyle({}, { stick: { radius: 0.16, colorscheme: "Jmol" }, sphere: { scale: 0.24, colorscheme: "Jmol" } });
+        viewer.zoomTo();
+        viewer.render();
+        loader.remove();
+      } catch (error) {
+        fail(error && error.message ? error.message : "The molecule could not be rendered.");
+      }
+    }
+
+    if (document.readyState === "complete") renderMolecule();
+    else window.addEventListener("load", renderMolecule);
+  </script>
+</body>
+</html>`;
 }
 
 function MoleculeArtifact({ code }: { code: string }) {
   try {
-    const parsed = JSON.parse(code) as { smiles?: string; name?: string };
+    const parsed = JSON.parse(code) as { smiles?: string; name?: string; cid?: string | number };
     const smiles = parsed.smiles?.trim();
-    if (!smiles) throw new Error("No SMILES");
-
-    const ringMatch = smiles.match(/C1(C*)C1/) ?? smiles.match(/C1(C{2,8})1/);
-    const ringSize = ringMatch ? Math.max(3, Math.min(8, ringMatch[1].length + 2)) : null;
-    const points = ringSize ? moleculePoints(ringSize) : [];
+    const name = parsed.name?.trim();
+    const cid = parsed.cid ? String(parsed.cid).trim() : "";
+    if (!smiles && !name && !cid) throw new Error("No molecule identifier");
 
     return (
       <figure className="artifact-frame molecule-frame">
         <figcaption>
           <strong>{parsed.name ?? "Molecule"}</strong>
-          <code>{smiles}</code>
+          {smiles ? <code>{smiles}</code> : cid ? <code>CID {cid}</code> : null}
         </figcaption>
-        {points.length ? (
-          <svg viewBox="0 0 300 230" role="img" aria-label={parsed.name ?? smiles}>
-            {points.map((point, index) => {
-              const next = points[(index + 1) % points.length];
-              return <line key={`${point.x}-${point.y}`} x1={point.x} x2={next.x} y1={point.y} y2={next.y} />;
-            })}
-            {points.map((point, index) => (
-              <g key={`${point.x}-${point.y}-atom`}>
-                <circle cx={point.x} cy={point.y} r="15" />
-                <text x={point.x} y={point.y + 4}>C</text>
-                <text className="hydrogen-label" x={point.x + (point.x > 150 ? 20 : -28)} y={point.y + (point.y > 118 ? 20 : -18)}>H2</text>
-                <title>{`Carbon ${index + 1}`}</title>
-              </g>
-            ))}
-          </svg>
-        ) : (
-          <div className="molecule-fallback">{smiles}</div>
-        )}
+        <iframe
+          className="molecule-viewer"
+          sandbox="allow-scripts"
+          srcDoc={buildMolecule3DHtml(parsed)}
+          title={`${parsed.name ?? smiles ?? cid} 3D molecule viewer`}
+        />
       </figure>
     );
   } catch {
